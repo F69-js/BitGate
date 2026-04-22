@@ -1,31 +1,16 @@
-const COLOR_MAP = [
-  "#000",
-  "#8B4513",
-  "#F00",
-  "#FF8C00",
-  "#FF0",
-  "#0F0",
-  "#00F",
-  "#800080",
-  "#808080",
-  "#FFF",
-  "#D4AF37",
-  "#C0C0C0"
-];
+const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
 
 function addComponent(type) {
     const id = Date.now();
-    // LEDのデフォルト値を修正: 抵抗成分を減らし、耐圧(vMax)を追加
+    // 初期状態: state は false (OFF) を明示
     const obj = { 
         id, type, x: 100, y: 100, 
-        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), // LED自体の抵抗を小さく設定
-        vMax: 5.0,  // 5Vを超えると危ない
-        vDrop: 2.0, // 順方向電圧(Vf)の目安
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), 
         currentI: 0, 
-        state: false,
+        state: false, 
         isBlown: false 
     };
-    
+
     if (type === 'BAT') {
         obj.w = 100; obj.h = 60;
         obj.pins = [{ id: id+'p', type: 'POS', relX: 100, relY: 15 }, { id: id+'n', type: 'NEG', relX: 100, relY: 45 }];
@@ -47,41 +32,30 @@ function drawComponent(ctx, c, isSelected) {
     ctx.lineWidth = 2; ctx.fillStyle = '#fff';
     
     if (c.type === 'RES') {
-        // --- 抵抗器の描画は変更なし ---
         ctx.fillStyle = '#f3e5ab'; ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeRect(c.x, c.y, c.w, c.h);
         const s = Math.floor(c.val).toString();
         let b = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(s[0]), parseInt(s[1]), s.length - 2];
         b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(c.x + 15 + (i * 12), c.y, 7, c.h); });
         ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(c.x + 55, c.y, 7, c.h);
-    } 
-    else if (c.type === 'LED') {
+    } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(c.x+25, c.y+25, 20, 0, Math.PI*2);
         if (c.isBlown) {
-            // 過電圧で薄黒くなったLED
-            ctx.fillStyle = '#333333'; 
-            ctx.fill();
-            ctx.strokeStyle = '#000';
+            ctx.fillStyle = '#333';
         } else {
-            ctx.fillStyle = `rgba(46, 204, 113, ${Math.min(c.currentI*40, 1)})`; 
-            ctx.fill();
+            ctx.fillStyle = `rgba(46, 204, 113, ${Math.min(c.currentI*40, 1)})`;
         }
-        ctx.stroke();
-    } 
-    else if (c.type === 'BAT') {
-        // ショート時に電池を赤く塗る
+        ctx.fill(); ctx.stroke();
+    } else if (c.type === 'BAT') {
         ctx.fillStyle = c.isShort ? '#e74c3c' : '#fff';
         ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeRect(c.x, c.y, c.w, c.h);
         ctx.fillStyle = c.isShort ? '#fff' : '#000';
-        ctx.font = "bold 12px Arial";
-        ctx.fillText(c.isShort ? "!! SHORT !!" : c.val + "V PWR", c.x+10, c.y+35);
-    } 
-    else {
-        // スイッチ
+        ctx.font = "bold 12px Arial"; ctx.fillText(c.isShort ? "!! SHORT !!" : c.val + "V PWR", c.x+10, c.y+35);
+    } else {
+        // スイッチの描画（OFF=赤, ON=緑）
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(c.x+10, c.y+10, 30, 20); ctx.strokeRect(c.x, c.y, c.w, c.h);
     }
 
-    // ピン描画
     c.pins.forEach(p => {
         ctx.beginPath(); ctx.arc(c.x+p.relX, c.y+p.relY, 7, 0, Math.PI*2);
         ctx.fillStyle = (p.type === 'POS') ? '#e74c3c' : (p.type === 'NEG') ? '#3498db' : '#95a5a6';
