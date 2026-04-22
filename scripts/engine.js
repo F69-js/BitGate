@@ -1,5 +1,9 @@
 function updateSimulation() {
-    components.forEach(c => c.currentI = 0);
+    components.forEach(c => {
+        c.currentI = 0;
+        if (c.type === 'BAT') c.isShort = false; // ショートフラグのリセット
+    });
+    
     if (!isSimulating) return;
 
     components.filter(c => c.type === 'BAT').forEach(bat => {
@@ -29,18 +33,25 @@ function updateSimulation() {
         if (closed) {
             let r = 0;
             pathComps.forEach(c => { if (c.type === 'LED' || c.type === 'RES') r += c.val; });
-            const amp = r > 0 ? bat.val / r : 0;
-            pathComps.forEach(c => { if (c.type === 'LED') c.currentI = amp; });
+            
+            // ショート判定 (抵抗が極めて低い場合)
+            if (r < 0.1) {
+                bat.isShort = true;
+                document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
+                return;
+            }
+
+            const amp = bat.val / r;
+            pathComps.forEach(c => { 
+                if (c.type === 'LED') {
+                    c.currentI = amp;
+                    // 過電圧判定 (0.05A以上で破壊)
+                    if (amp > 0.05) c.isBlown = true;
+                }
+            });
             document.getElementById('statusDisp').innerText = "LIVE: " + amp.toFixed(4) + " A";
         } else {
             document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
         }
     });
-}
-
-function distToSegment(p, v, w) {
-    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
-    if (l2 == 0) return Math.hypot(p.x - v.x, p.y - v.y);
-    let t = Math.max(0, Math.min(1, ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2));
-    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
 }
