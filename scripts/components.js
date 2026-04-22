@@ -15,7 +15,16 @@ const COLOR_MAP = [
 
 function addComponent(type) {
     const id = Date.now();
-    const obj = { id, type, x: 100, y: 100, val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 220), currentI: 0, state: false };
+    // LEDのデフォルト値を修正: 抵抗成分を減らし、耐圧(vMax)を追加
+    const obj = { 
+        id, type, x: 100, y: 100, 
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), // LED自体の抵抗を小さく設定
+        vMax: 5.0,  // 5Vを超えると危ない
+        vDrop: 2.0, // 順方向電圧(Vf)の目安
+        currentI: 0, 
+        state: false,
+        isBlown: false 
+    };
     
     if (type === 'BAT') {
         obj.w = 100; obj.h = 60;
