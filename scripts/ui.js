@@ -4,38 +4,38 @@ function getMousePos(e) {
 }
 
 function initUIListeners() {
-    // Edge/Chrome等の右クリックメニューを完全に封鎖
-    window.addEventListener('contextmenu', e => {
-        e.preventDefault();
-    }, false);
+    window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
     canvas.addEventListener('mousedown', e => {
         const pos = getMousePos(e);
         
-        // 右クリックでキャンセル
         if (e.button === 2) {
-            activeLine = null;
-            selectedObj = null;
-            updateUI();
-            return;
+            activeLine = null; selectedObj = null; updateUI(); return;
         }
 
-        if (isSimulating) {
-            const hitSW = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
-            if (hitSW?.type === 'PSW' || hitSW?.type === 'SSW') {
-                if (hitSW.type === 'PSW') hitSW.state = true; else hitSW.state = !hitSW.state;
-                selectedObj = { type: 'comp', ref: hitSW };
-                updateUI(); return;
+        // 1. スイッチ操作の優先判定
+        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
+        
+        if (hitC && (hitC.type === 'PSW' || hitC.type === 'SSW')) {
+            if (isSimulating) {
+                // シミュレーション中なら状態を反転
+                if (hitC.type === 'PSW') {
+                    hitC.state = true; // Push SWはMouseDownでON
+                } else {
+                    hitC.state = !hitC.state; // Slide SWはトグル
+                }
+                selectedObj = { type: 'comp', ref: hitC };
+                updateUI();
+                return; // 探索へ
             }
         }
 
-        // 1. ピン判定
+        // 2. ピン判定（配線開始/終了）
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
                 if (Math.hypot(pos.x - (c.x + p.relX), pos.y - (c.y + p.relY)) < 15) {
-                    hitPin = { comp: c, pin: p };
-                    break;
+                    hitPin = { comp: c, pin: p }; break;
                 }
             }
             if (hitPin) break;
@@ -55,16 +55,16 @@ function initUIListeners() {
             updateUI(); return;
         }
 
+        // 3. 配線中の曲げ
         if (activeLine) {
-            activeLine.points.push({ x: pos.x, y: pos.y });
-            return;
+            activeLine.points.push({ x: pos.x, y: pos.y }); return;
         }
 
-        // 2. 配線のクリック判定（選択削除用）
+        // 4. 配線選択
         const hitWire = wires.find(w => {
-            const p1 = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
-            const p2 = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
-            const pts = [p1, ...w.points, p2];
+            const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
+            const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
+            const pts = [pStart, ...w.points, pEnd];
             for (let i = 0; i < pts.length - 1; i++) {
                 if (distToSegment(pos, pts[i], pts[i+1]) < 10) return true;
             }
@@ -76,8 +76,7 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 3. パーツのドラッグ判定
-        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
+        // 5. パーツドラッグ（スイッチ以外、または非シミュレーション時）
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
             draggingObj = hitC;
@@ -88,21 +87,19 @@ function initUIListeners() {
         updateUI();
     });
 
+    window.addEventListener('mouseup', () => {
+        // Push Switch は指を離すとOFF
+        components.forEach(c => { if (c.type === 'PSW') c.state = false; });
+        draggingObj = null;
+    });
+
     window.addEventListener('mousemove', e => {
         mouse = getMousePos(e);
         if (draggingObj) { draggingObj.x = mouse.x - dragOffset.x; draggingObj.y = mouse.y - dragOffset.y; }
     });
 
-    window.addEventListener('mouseup', () => {
-        components.forEach(c => { if (c.type === 'PSW') c.state = false; });
-        draggingObj = null;
-    });
-
-    // キーボードによる削除（Delete/Backspace）
     window.addEventListener('keydown', e => {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-            deleteSelected();
-        }
+        if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
     });
 }
 
@@ -114,8 +111,7 @@ function deleteSelected() {
     } else {
         wires = wires.filter(w => w !== selectedObj.ref);
     }
-    selectedObj = null;
-    updateUI();
+    selectedObj = null; updateUI();
 }
 
 function updateUI() {
