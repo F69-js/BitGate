@@ -11,9 +11,11 @@ function updateSimulation() {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
         
+        if (!posP || !negP) return;
+
         let visited = new Set();
         let queue = [posP.id];
-        let pathComps = [];
+        let pathComps = new Set(); // 重複を防ぐためSetを使用
         let closed = false;
 
         // 経路探索（幅優先探索）
@@ -22,23 +24,37 @@ function updateSimulation() {
             if (visited.has(currId)) continue;
             visited.add(currId);
             
-            if (currId === negP.id) closed = true;
+            // マイナス端子に到達したら回路成立
+            if (currId === negP.id) {
+                closed = true;
+            }
 
-            // 配線を通じた移動
+            // 1. 配線（Wire）を通じた移動
             wires.forEach(w => {
                 if (w.from.pin.id === currId) queue.push(w.to.pin.id);
                 if (w.to.pin.id === currId) queue.push(w.from.pin.id);
             });
 
-            // コンポーネントを通じた移動
+            // 2. コンポーネント内部を通じた移動
             components.forEach(comp => {
-                if (comp.pins.some(p => p.id === currId)) {
-                    // スイッチがオフなら導通しない
-                    if ((comp.type === 'PSW' || comp.type === 'SSW') && !comp.state) return;
+                // 現在のID（ピン）がこのコンポーネントに属しているか
+                const hasPin = comp.pins.some(p => p.id === currId);
+                
+                if (hasPin) {
+                    // スイッチの場合の特殊処理
+                    const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
                     
-                    pathComps.push(comp);
+                    // スイッチがOFFなら、このコンポーネント内は通過させない
+                    if (isSwitch && !comp.state) {
+                        return; // このコンポーネントの他のピンはQueueに追加しない
+                    }
+
+                    // 通過可能な場合
+                    pathComps.add(comp);
                     comp.pins.forEach(p => {
-                        if (p.id !== currId) queue.push(p.id);
+                        if (p.id !== currId) {
+                            queue.push(p.id);
+                        }
                     });
                 }
             });
@@ -49,7 +65,7 @@ function updateSimulation() {
             let totalR = 0;
             pathComps.forEach(c => {
                 if (c.type === 'RES' || c.type === 'LED') {
-                    // LEDが焼損している場合は断線状態（高抵抗）とみなす
+                    // 焼損しているLEDは絶縁体(断線)として扱う
                     totalR += c.isBlown ? 1000000 : c.val;
                 }
             });
@@ -67,9 +83,7 @@ function updateSimulation() {
                 if (c.type === 'LED' && !c.isBlown) {
                     c.currentI = amp;
                     
-                    // 破壊判定ロジック
-                    // 1. 電流による判定: 0.03A (30mA) を超えると焼き切れる
-                    // 2. 電圧による簡易判定: 抵抗が少なすぎる状態で高電圧をかけると即死
+                    // 破壊判定
                     const excessiveCurrent = amp > 0.03;
                     const excessiveVoltage = (bat.val > 5.0 && totalR < 100); 
 
@@ -79,8 +93,7 @@ function updateSimulation() {
                 }
             });
 
-            // ステータス表示の更新
-            if (pathComps.some(c => c.isBlown)) {
+            if (pathComps.size > 0 && Array.from(pathComps).some(c => c.isBlown)) {
                 document.getElementById('statusDisp').innerText = "💥 DEVICE BLOWN";
             } else {
                 document.getElementById('statusDisp').innerText = "LIVE: " + amp.toFixed(4) + " A";
