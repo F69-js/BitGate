@@ -1,5 +1,4 @@
 function updateSimulation() {
-    // 状態のリセット
     components.forEach(c => {
         c.currentI = 0;
         if (c.type === 'BAT') c.isShort = false;
@@ -12,12 +11,12 @@ function updateSimulation() {
         const negP = bat.pins.find(p => p.type === 'NEG');
         if (!posP || !negP) return;
 
-        // 1. まず物理的な接続ルート（配線）をすべて洗い出す（スイッチの状態無視）
         let visited = new Set();
         let queue = [posP.id];
         let pathComps = new Set();
         let closed = false;
 
+        // 探索フェーズ: スイッチがOFFの場合はその「先」へ進ませない
         while(queue.length > 0) {
             let currId = queue.shift();
             if (visited.has(currId)) continue;
@@ -25,15 +24,19 @@ function updateSimulation() {
             
             if (currId === negP.id) closed = true;
 
-            // 配線(Wire)の探索
+            // 1. 配線を通じた移動
             wires.forEach(w => {
                 if (w.from.pin.id === currId) queue.push(w.to.pin.id);
                 if (w.to.pin.id === currId) queue.push(w.from.pin.id);
             });
 
-            // コンポーネント内部の探索（ここではスイッチのON/OFFに関わらず「道」として通る）
+            // 2. コンポーネント内部を通じた移動
             components.forEach(comp => {
                 if (comp.pins.some(p => p.id === currId)) {
+                    // 導通チェック: スイッチがOFFなら、このコンポーネントの他ピンをQueueに入れない
+                    const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
+                    if (isSwitch && !comp.state) return;
+
                     pathComps.add(comp);
                     comp.pins.forEach(p => {
                         if (p.id !== currId) queue.push(p.id);
@@ -42,22 +45,7 @@ function updateSimulation() {
             });
         }
 
-        // 2. 回路が物理的に繋がっている場合、スイッチの状態をチェック
         if (closed) {
-            // ルート上にある全てのスイッチがONであることを確認 (AND条件)
-            let allSwitchesOn = true;
-            pathComps.forEach(c => {
-                if ((c.type === 'PSW' || c.type === 'SSW') && !c.state) {
-                    allSwitchesOn = false;
-                }
-            });
-
-            if (!allSwitchesOn) {
-                document.getElementById('statusDisp').innerText = "CIRCUIT OPEN (SW OFF)";
-                return; // 導通していないので計算終了
-            }
-
-            // 3. 計算フェーズ (全てONの場合のみ)
             let totalR = 0;
             pathComps.forEach(c => {
                 if (c.type === 'RES' || c.type === 'LED') {
