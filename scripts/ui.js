@@ -1,3 +1,10 @@
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
 function initUIListeners() {
     canvas.addEventListener('mousedown', e => {
         const pos = getMousePos(e);
