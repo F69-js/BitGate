@@ -32,7 +32,24 @@ function updateSimulation() {
 
         if (closed) {
             let r = 0;
-            pathComps.forEach(c => { if (c.type === 'LED' || c.type === 'RES') r += c.val; });
+            pathComps.forEach(c => {
+                if (c.type === 'LED' || c.type === 'RES') r += c.val; 
+                if (c.type === 'LED') {
+                    c.currentI = amp;
+                    
+                    // 【リアル化】LEDにかかる電圧を計算 (V = I * R)
+                    // 本来は非線形ですが、簡易的に「このLEDが受け持っている電圧」を算出
+                    const vApp = amp * c.val + (bat.val - amp * totalR) / (ledCount || 1); 
+                    
+                    // 1. 電圧による即死判定 (5V以上の圧力がかかったらアウト)
+                    // 2. あるいは電流(20mA = 0.02A)を超え始めたら危険
+                    if (bat.val > c.vMax && totalR < 100) { 
+                        c.isBlown = true; 
+                    }
+                    if (amp > 0.03) { // 30mA超えでも焼き切れる
+                        c.isBlown = true;
+                    }
+            });
             
             // ショート判定 (抵抗が極めて低い場合)
             if (r < 0.1) {
