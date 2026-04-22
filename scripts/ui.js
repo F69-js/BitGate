@@ -1,13 +1,24 @@
-// マウス位置取得（共通）
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
 
 function initUIListeners() {
+    // Edge/Chrome等の右クリックメニューを完全に封鎖
+    window.addEventListener('contextmenu', e => {
+        e.preventDefault();
+    }, false);
+
     canvas.addEventListener('mousedown', e => {
         const pos = getMousePos(e);
-        if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
+        
+        // 右クリックでキャンセル
+        if (e.button === 2) {
+            activeLine = null;
+            selectedObj = null;
+            updateUI();
+            return;
+        }
 
         if (isSimulating) {
             const hitSW = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
@@ -34,7 +45,6 @@ function initUIListeners() {
             if (!activeLine) {
                 activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
-                // 配線終了（中継点をコピーして保存）
                 wires.push({ 
                     from: { comp: activeLine.startComp, pin: activeLine.startPin }, 
                     to: { comp: hitPin.comp, pin: hitPin.pin }, 
@@ -45,24 +55,28 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 2. 配線中の「曲げ」：空地をクリック
         if (activeLine) {
             activeLine.points.push({ x: pos.x, y: pos.y });
             return;
         }
 
-        // 3. 既存の中継点ドラッグ
-        for (let w of wires) {
-            for (let i = 0; i < w.points.length; i++) {
-                if (Math.hypot(pos.x - w.points[i].x, pos.y - w.points[i].y) < 10) {
-                    draggingPoint = { wire: w, index: i };
-                    selectedObj = { type: 'wire', ref: w };
-                    updateUI(); return;
-                }
+        // 2. 配線のクリック判定（選択削除用）
+        const hitWire = wires.find(w => {
+            const p1 = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
+            const p2 = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
+            const pts = [p1, ...w.points, p2];
+            for (let i = 0; i < pts.length - 1; i++) {
+                if (distToSegment(pos, pts[i], pts[i+1]) < 10) return true;
             }
+            return false;
+        });
+
+        if (hitWire) {
+            selectedObj = { type: 'wire', ref: hitWire };
+            updateUI(); return;
         }
 
-        // 4. パーツドラッグ
+        // 3. パーツのドラッグ判定
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
@@ -77,16 +91,31 @@ function initUIListeners() {
     window.addEventListener('mousemove', e => {
         mouse = getMousePos(e);
         if (draggingObj) { draggingObj.x = mouse.x - dragOffset.x; draggingObj.y = mouse.y - dragOffset.y; }
-        if (draggingPoint) {
-            draggingPoint.wire.points[draggingPoint.index].x = mouse.x;
-            draggingPoint.wire.points[draggingPoint.index].y = mouse.y;
-        }
     });
 
     window.addEventListener('mouseup', () => {
         components.forEach(c => { if (c.type === 'PSW') c.state = false; });
-        draggingObj = null; draggingPoint = null;
+        draggingObj = null;
     });
+
+    // キーボードによる削除（Delete/Backspace）
+    window.addEventListener('keydown', e => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            deleteSelected();
+        }
+    });
+}
+
+function deleteSelected() {
+    if (!selectedObj) return;
+    if (selectedObj.type === 'comp') {
+        wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
+        components = components.filter(c => c !== selectedObj.ref);
+    } else {
+        wires = wires.filter(w => w !== selectedObj.ref);
+    }
+    selectedObj = null;
+    updateUI();
 }
 
 function updateUI() {
