@@ -1,4 +1,5 @@
 function updateSimulation() {
+    // 状態のリセット
     components.forEach(c => {
         c.currentI = 0;
         if (c.type === 'BAT') c.isShort = false;
@@ -16,43 +17,57 @@ function updateSimulation() {
         let pathComps = new Set();
         let closed = false;
 
-        // 探索フェーズ: スイッチがOFFの場合はその「先」へ進ませない
+        // --- 探索フェーズ ---
         while(queue.length > 0) {
             let currId = queue.shift();
             if (visited.has(currId)) continue;
             visited.add(currId);
             
+            // マイナス端子に到達
             if (currId === negP.id) closed = true;
 
-            // 1. 配線を通じた移動
+            // 1. 配線（Wire）の探索
             wires.forEach(w => {
                 if (w.from.pin.id === currId) queue.push(w.to.pin.id);
                 if (w.to.pin.id === currId) queue.push(w.from.pin.id);
             });
 
-            // 2. コンポーネント内部を通じた移動
+            // 2. コンポーネント（部品）内部の探索
             components.forEach(comp => {
-                if (comp.pins.some(p => p.id === currId)) {
-                    // 導通チェック: スイッチがOFFなら、このコンポーネントの他ピンをQueueに入れない
-                    const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
-                    if (isSwitch && !comp.state) return;
+                // 現在のピンがこの部品のピンに含まれているか確認
+                const currentPinObj = comp.pins.find(p => p.id === currId);
+                
+                if (currentPinObj) {
+                    // スイッチの場合の導通判定
+                    let canPass = true;
+                    if (comp.type === 'PSW' || comp.type === 'SSW') {
+                        canPass = comp.state; // ONなら通れる、OFFなら通れない
+                    }
 
-                    pathComps.add(comp);
-                    comp.pins.forEach(p => {
-                        if (p.id !== currId) queue.push(p.id);
-                    });
+                    if (canPass) {
+                        pathComps.add(comp);
+                        // 部品が導通している場合、その部品の「他のすべてのピン」を探索候補に入れる
+                        comp.pins.forEach(p => {
+                            if (p.id !== currId) {
+                                queue.push(p.id);
+                            }
+                        });
+                    }
                 }
             });
         }
 
+        // --- 計算フェーズ ---
         if (closed) {
             let totalR = 0;
             pathComps.forEach(c => {
                 if (c.type === 'RES' || c.type === 'LED') {
+                    // 焼損したLEDは断線(高抵抗)扱い
                     totalR += c.isBlown ? 10000000 : c.val;
                 }
             });
 
+            // ショート判定
             if (totalR < 0.1) {
                 bat.isShort = true;
                 document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
@@ -63,6 +78,7 @@ function updateSimulation() {
             pathComps.forEach(c => {
                 if (c.type === 'LED' && !c.isBlown) {
                     c.currentI = amp;
+                    // 焼損判定
                     if (amp > 0.03 || (bat.val > 5.0 && totalR < 50)) {
                         c.isBlown = true;
                     }
@@ -80,6 +96,7 @@ function updateSimulation() {
     });
 }
 
+// 配線の当たり判定用
 function distToSegment(p, v, w) {
     const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
     if (l2 == 0) return Math.hypot(p.x - v.x, p.y - v.y);
