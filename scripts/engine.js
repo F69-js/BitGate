@@ -1,5 +1,5 @@
 function updateSimulation() {
-    // 状態のリセット
+    // 全コンポーネントの状態リセット
     components.forEach(c => {
         c.currentI = 0;
         if (c.type === 'BAT') c.isShort = false;
@@ -15,62 +15,61 @@ function updateSimulation() {
 
         let visited = new Set();
         let queue = [posP.id];
-        let pathComps = new Set(); // 重複を防ぐためSetを使用
+        let pathComps = new Set();
         let closed = false;
 
-        // 経路探索（幅優先探索）
+        // --- 探索フェーズ ---
         while(queue.length > 0) {
             let currId = queue.shift();
             if (visited.has(currId)) continue;
             visited.add(currId);
             
-            // マイナス端子に到達したら回路成立
             if (currId === negP.id) {
                 closed = true;
             }
 
-            // 1. 配線（Wire）を通じた移動
+            // 1. 配線(Wire)の探索
             wires.forEach(w => {
                 if (w.from.pin.id === currId) queue.push(w.to.pin.id);
                 if (w.to.pin.id === currId) queue.push(w.from.pin.id);
             });
 
-            // 2. コンポーネント内部を通じた移動
+            // 2. コンポーネント内部の探索
             components.forEach(comp => {
-                // 現在のID（ピン）がこのコンポーネントに属しているか
                 const hasPin = comp.pins.some(p => p.id === currId);
                 
                 if (hasPin) {
-                    // スイッチの場合の特殊処理
-                    const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
-                    
-                    // スイッチがOFFなら、このコンポーネント内は通過させない
-                    if (isSwitch && !comp.state) {
-                        return; // このコンポーネントの他のピンはQueueに追加しない
+                    // 導通フラグ: スイッチ以外は常にtrue、スイッチはstateがtrueの時だけtrue
+                    let isConductive = true;
+                    if (comp.type === 'PSW' || comp.type === 'SSW') {
+                        isConductive = comp.state; 
                     }
 
-                    // 通過可能な場合
-                    pathComps.add(comp);
-                    comp.pins.forEach(p => {
-                        if (p.id !== currId) {
-                            queue.push(p.id);
-                        }
-                    });
+                    if (isConductive) {
+                        pathComps.add(comp);
+                        // 導通している場合のみ、反対側のピンを次の探索対象(Queue)に入れる
+                        comp.pins.forEach(p => {
+                            if (p.id !== currId) {
+                                queue.push(p.id);
+                            }
+                        });
+                    }
+                    // isConductiveがfalse(スイッチOFF)なら、ここで探索の連鎖が止まる
                 }
             });
         }
 
-        // 回路が閉じている場合の計算
+        // --- 計算フェーズ ---
         if (closed) {
             let totalR = 0;
             pathComps.forEach(c => {
                 if (c.type === 'RES' || c.type === 'LED') {
-                    // 焼損しているLEDは絶縁体(断線)として扱う
-                    totalR += c.isBlown ? 1000000 : c.val;
+                    // 焼損したLEDは巨大な抵抗(断線)として扱う
+                    totalR += c.isBlown ? 10000000 : c.val;
                 }
             });
 
-            // ショート判定 (合計抵抗が0.1Ω以下)
+            // ショート判定
             if (totalR < 0.1) {
                 bat.isShort = true;
                 document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
@@ -83,17 +82,15 @@ function updateSimulation() {
                 if (c.type === 'LED' && !c.isBlown) {
                     c.currentI = amp;
                     
-                    // 破壊判定
-                    const excessiveCurrent = amp > 0.03;
-                    const excessiveVoltage = (bat.val > 5.0 && totalR < 100); 
-
-                    if (excessiveCurrent || excessiveVoltage) {
+                    // リアルな焼損判定
+                    // 9V直結(R=20)なら 0.45A 流れるので即死
+                    if (amp > 0.03 || (bat.val > 5.0 && totalR < 50)) {
                         c.isBlown = true;
                     }
                 }
             });
 
-            if (pathComps.size > 0 && Array.from(pathComps).some(c => c.isBlown)) {
+            if (Array.from(pathComps).some(c => c.isBlown)) {
                 document.getElementById('statusDisp').innerText = "💥 DEVICE BLOWN";
             } else {
                 document.getElementById('statusDisp').innerText = "LIVE: " + amp.toFixed(4) + " A";
