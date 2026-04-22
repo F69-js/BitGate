@@ -1,0 +1,26 @@
+name: BitGate Logic CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    # JSDOM（ブラウザ環境のシミュレータ）をインストールして、HTML内のJSをテスト可能にする
+    - name: Install dependencies
+      run: npm install jsdom
+
+    - name: Run Circuit Logic Test
+      run: node .github/scripts/test-logic.js
