@@ -3,11 +3,27 @@ const ctx = canvas.getContext('2d');
 let isSimulating = false, components = [], wires = [], activeLine = null;
 let draggingObj = null, draggingPoint = null, dragOffset = {x:0, y:0}, selectedObj = null, mouse = {x:0, y:0};
 
+// マウスの押し下げ状態を保持するフラグ
+let isMouseDown = false;
+
 function draw() {
+    // --- 1. 入力の同期更新 ---
+    if (isSimulating) {
+        components.forEach(c => {
+            if (c.type === 'PSW') {
+                // シミュレーション中、マウスが重なっていて押されている間だけON
+                const isHover = (mouse.x > c.x && mouse.x < c.x + c.w && mouse.y > c.y && mouse.y < c.y + c.h);
+                c.state = (isHover && isMouseDown);
+            }
+        });
+    }
+
+    // --- 2. 物理演算と描画 ---
     updateSimulation();
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Grid
+    // Grid描画
     ctx.strokeStyle = '#f1f1f1'; ctx.lineWidth = 1;
     for(let i=0; i<canvas.width; i+=50) {
         ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
@@ -30,7 +46,7 @@ function draw() {
     // 各コンポーネントの描画
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
-    // 現在作成中の配線（activeLine）の描画
+    // 作成中の配線
     if (activeLine) {
         const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
         const pts = [pStart, ...activeLine.points, mouse];
@@ -54,15 +70,6 @@ document.getElementById('valInput').addEventListener('input', e => {
     if (selectedObj?.type === 'comp') selectedObj.ref.val = parseFloat(e.target.value) || 0;
 });
 
-document.getElementById('delBtn').addEventListener('click', () => {
-    if (!selectedObj) return;
-    if (selectedObj.type === 'comp') {
-        wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
-        components = components.filter(c => c !== selectedObj.ref);
-    } else {
-        wires = wires.filter(w => w !== selectedObj.ref);
-    }
-    selectedObj = null; updateUI();
-});
+document.getElementById('delBtn').addEventListener('click', () => deleteSelected());
 
 draw();
