@@ -27,9 +27,9 @@ function distToSegment(p, v, w) {
 
 function initUIListeners() {
     // typeSelect のイベントリスナーを initUIListeners に追加
-// document.getElementById('typeSelect').addEventListener('change', e => {
-//    if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
-// });
+ document.getElementById('typeSelect').addEventListener('change', e => {
+   if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
+});
     
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
