@@ -143,6 +143,10 @@ function updateUI() {
     const ts = document.getElementById('typeSelect');
     const tl = document.getElementById('targetLabel');
     const vi = document.getElementById('valInput');
+    const delBtn = document.getElementById('delBtn');
+
+    if (delBtn) delBtn.disabled = !selectedObj;
+
     if (ea) {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
@@ -157,4 +161,15 @@ function updateUI() {
             } else { ea.style.visibility = 'hidden'; }
         } else { ea.style.visibility = 'hidden'; }
     }
+}
+
+function deleteSelected() {
+    if (!selectedObj) return;
+    if (selectedObj.type === 'comp') {
+        wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
+        components = components.filter(c => c !== selectedObj.ref);
+    } else { 
+        wires = wires.filter(w => w !== selectedObj.ref); 
+    }
+    selectedObj = null; updateUI();
 }
