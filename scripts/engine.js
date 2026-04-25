@@ -1,6 +1,6 @@
 /**
- * BitGate Engine v1.1.1 - Circuit Simulation Logic
- * 修正内容: ショート判定の安定化と経路計算の精度向上
+ * BitGate Engine v1.1.2 - Ultimate Stability Update
+ * 修正内容: 数値計算の安全性強化とショート判定のバグ修正
  */
 
 function updateSimulation() {
@@ -25,7 +25,6 @@ function updateSimulation() {
         let closed = false;
         let lastPinId = null;
 
-        // --- 経路探索（BFS） ---
         while(queue.length > 0) {
             let currPinId = queue.shift();
             if (visitedPins.has(currPinId)) continue;
@@ -37,7 +36,6 @@ function updateSimulation() {
                 break;
             }
 
-            // A. 配線経由
             for (let w of wires) {
                 let nextPinId = (w.from.pin.id === currPinId) ? w.to.pin.id : (w.to.pin.id === currPinId) ? w.from.pin.id : null;
                 if (nextPinId && !visitedPins.has(nextPinId)) {
@@ -46,7 +44,6 @@ function updateSimulation() {
                 }
             }
 
-            // B. コンポーネント内部経由
             for (let comp of components) {
                 if (comp.pins.some(p => p.id === currPinId)) {
                     const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
@@ -62,7 +59,6 @@ function updateSimulation() {
             }
         }
 
-        // --- 電流計算フェーズ ---
         if (closed) {
             let actualPathComps = new Set();
             let traceId = lastPinId;
@@ -72,38 +68,35 @@ function updateSimulation() {
                 traceId = edge.fromPinId;
             }
 
-            // 抵抗の計算（配線抵抗 0.01Ω を隠し味に追加して「真のゼロ」を防ぐ）
-            let totalR = 0.01; 
+            // --- 抵抗計算 (型変換を厳密に) ---
+            let totalR = 0.05; // 最小の配線抵抗
             actualPathComps.forEach(c => {
+                let rVal = Number(c.val);
+                if (isNaN(rVal)) rVal = 0;
+
                 if (c.type === 'RES') {
-                    totalR += c.isBlown ? 10000000 : (parseFloat(c.val) || 0);
+                    totalR += c.isBlown ? 10000000 : rVal;
                 } else if (c.type === 'LED') {
-                    // LEDは点灯時に一定の抵抗値を持つものとする（簡易化）
-                    totalR += c.isBlown ? 10000000 : (parseFloat(c.val) || 20); 
+                    // LED自体に抵抗を持たせる(デフォルト20Ω)
+                    totalR += c.isBlown ? 10000000 : (rVal > 0 ? rVal : 20);
                 } else {
-                    // スイッチなどもごくわずかに抵抗があるものとする
-                    totalR += 0.01;
+                    totalR += 0.01; // スイッチ等の微小抵抗
                 }
             });
 
-            // ショート判定のしきい値を少し緩和（0.1Ω以下をショートとする）
+            // --- ショート判定判定の最終チェック ---
+            // 抵抗が極端に低い (0.1Ω未満) 場合のみショート
             if (totalR < 0.1) {
                 bat.isShort = true;
                 document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
-                // ショート時も一応猛烈な電流が流れていることにする
-                const shortAmp = bat.val / 0.01;
-                actualPathComps.forEach(c => c.currentI = shortAmp);
                 return;
             }
 
-            const amp = bat.val / totalR;
+            const amp = Number(bat.val) / totalR;
             actualPathComps.forEach(c => {
                 c.currentI = amp;
                 if (c.type === 'LED' && !c.isBlown) {
-                    // 電流または電圧過多で死亡判定
-                    if (amp > 0.05 || (bat.val > 12 && totalR < 100)) {
-                        c.isBlown = true;
-                    }
+                    if (amp > 0.05) c.isBlown = true;
                 }
             });
 
@@ -113,11 +106,4 @@ function updateSimulation() {
             document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
         }
     });
-}
-
-function distToSegment(p, v, w) {
-    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
-    if (l2 == 0) return Math.hypot(p.x - v.x, p.y - v.y);
-    let t = Math.max(0, Math.min(1, ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2));
-    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
 }
