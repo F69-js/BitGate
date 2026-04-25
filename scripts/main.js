@@ -5,48 +5,60 @@ let draggingObj = null, draggingPoint = null, dragOffset = {x:0, y:0}, selectedO
 
 // マウスの状態を管理
 let isMouseDown = false;
-
 function draw() {
-    // --- 1. 入力の同期更新（削除または簡略化） ---
-    // ここで c.state を直接書き換えるのをやめます。ui.js に任せます。
-
-    // --- 2. 物理演算と描画 ---
     updateSimulation();
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Grid描画
-    ctx.strokeStyle = '#f1f1f1'; ctx.lineWidth = 1;
-    for(let i=0; i<canvas.width; i+=50) {
-        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke();
+
+    ctx.save();
+    // ズームとパンの適用
+    ctx.translate(offset.x, offset.y);
+    ctx.scale(zoom, zoom);
+
+    // Grid描画 (無限グリッドっぽく見せるために範囲を広げて描画)
+    ctx.strokeStyle = '#f1f1f1'; ctx.lineWidth = 1/zoom;
+    const gridStep = 50;
+    const left = -offset.x / zoom;
+    const top = -offset.y / zoom;
+    const right = (canvas.width - offset.x) / zoom;
+    const bottom = (canvas.height - offset.y) / zoom;
+
+    for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
+        ctx.beginPath(); ctx.moveTo(i, top); ctx.lineTo(i, bottom); ctx.stroke();
+    }
+    for(let i = Math.floor(top/gridStep)*gridStep; i < bottom; i += gridStep) {
+        ctx.beginPath(); ctx.moveTo(left, i); ctx.lineTo(right, i); ctx.stroke();
     }
 
-    // 確定済み配線の描画
+    // 配線描画
     wires.forEach(w => {
         const p1 = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
         const p2 = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
         const pts = [p1, ...w.points, p2];
         ctx.beginPath(); 
-        ctx.lineWidth = (selectedObj?.ref === w) ? 5 : 3;
+        ctx.lineWidth = (selectedObj?.ref === w) ? 5/zoom : 3/zoom;
         ctx.strokeStyle = (selectedObj?.ref === w) ? '#2ecc71' : '#333';
         ctx.moveTo(pts[0].x, pts[0].y);
         for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
     });
 
-    // 各コンポーネントの描画
+    // 各コンポーネント描画
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
     // 作成中の配線
     if (activeLine) {
         const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
         const pts = [pStart, ...activeLine.points, mouse];
-        ctx.strokeStyle = '#2ecc71'; ctx.setLineDash([5,5]); ctx.beginPath();
+        ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2/zoom;
+        ctx.setLineDash([5/zoom, 5/zoom]); ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke(); ctx.setLineDash([]);
     }
+
+    ctx.restore(); // ズーム設定をリセット（UIパーツを別途描画する場合のため）
+    
     requestAnimationFrame(draw);
 }
 
