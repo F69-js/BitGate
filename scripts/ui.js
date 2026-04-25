@@ -4,6 +4,7 @@ let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
 let isSpacePressed = false;
+let draggingNode = null;
 
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -45,6 +46,7 @@ function initUIListeners() {
         }
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
 
+        // 1. ピンの判定 (配線開始)
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
@@ -54,21 +56,27 @@ function initUIListeners() {
             }
             if (hitPin) break;
         }
-
         if (hitPin) {
-            if (!activeLine) {
-                activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
-            } else {
+            if (!activeLine) { activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] }; } 
+            else {
                 wires.push({ from: { comp: activeLine.startComp, pin: activeLine.startPin }, to: { comp: hitPin.comp, pin: hitPin.pin }, points: [...activeLine.points] });
                 activeLine = null;
             }
             updateUI(); return;
         }
 
-        if (activeLine) {
-            activeLine.points.push({ x: pos.x, y: pos.y }); return;
+        // 2. 配線の「頂点(Node)」ドラッグ判定 (選択中のみ)
+        if (selectedObj?.type === 'wire') {
+            const w = selectedObj.ref;
+            for (let i = 0; i < w.points.length; i++) {
+                if (Math.hypot(pos.x - w.points[i].x, pos.y - w.points[i].y) < 10 / zoom) {
+                    draggingNode = { wire: w, index: i };
+                    return;
+                }
+            }
         }
 
+        // 3. 配線全体の判定 (選択)
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
@@ -80,6 +88,7 @@ function initUIListeners() {
         });
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
+        // 4. コンポーネントのドラッグ判定
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
@@ -97,26 +106,26 @@ function initUIListeners() {
         if (isPanning) {
             offset.x += mouseRaw.x - lastMousePos.x;
             offset.y += mouseRaw.y - lastMousePos.y;
-            lastMousePos = mouseRaw;
-            return;
+            lastMousePos = mouseRaw; return;
         }
+        
         mouse = getMousePos(e);
-        if (draggingObj) { 
+
+        if (draggingNode) {
+            // 配線の頂点を移動
+            draggingNode.wire.points[draggingNode.index].x = mouse.x;
+            draggingNode.wire.points[draggingNode.index].y = mouse.y;
+        } else if (draggingObj) { 
             draggingObj.x = mouse.x - dragOffset.x; 
             draggingObj.y = mouse.y - dragOffset.y; 
         }
         lastMousePos = mouseRaw;
     });
 
-    window.addEventListener('mouseup', (e) => {
-        const pos = getMousePos(e);
-        const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
-        if (!isPanning && moveDist < 5 && selectedObj?.type === 'comp') {
-            const c = selectedObj.ref;
-            if (c.type === 'SSW') c.state = !c.state;
-        }
+    window.addEventListener('mouseup', () => {
         components.forEach(c => { if (c.type === 'PSW') c.state = false; });
         draggingObj = null;
+        draggingNode = null; // 解放
         isPanning = false;
     });
 
