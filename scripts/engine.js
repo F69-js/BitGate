@@ -1,4 +1,4 @@
-unction updateSimulation() {
+function updateSimulation() {
     // 1. 全状態のリセット
     components.forEach(c => {
         c.currentI = 0;
