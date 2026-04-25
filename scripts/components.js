@@ -4,7 +4,7 @@ function addComponent(type) {
     const id = Date.now();
     const obj = { 
         id, type, x: 200, y: 200, 
-        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 2200 : 20), // 初期値を2200μFにアップ
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 1000 : 20), 
         currentI: 0, state: false, isBlown: false,
         isPowered: false,
         charge: 0 
@@ -81,6 +81,9 @@ function drawComponent(ctx, c, isSelected, zoom) {
         const fillLevel = Math.min(c.charge / 9, 1);
         ctx.fillStyle = `rgba(52, 152, 219, ${0.4 + fillLevel * 0.6})`;
         ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
+        // 容量ラベルを表示
+        ctx.fillStyle = "#000"; ctx.font = "10px Arial";
+        ctx.fillText(c.val + "uF", x, y - 5);
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*50, 1)})`;
