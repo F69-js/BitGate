@@ -13,24 +13,27 @@ function initUIListeners() {
             activeLine = null; selectedObj = null; updateUI(); return;
         }
 
-        // 1. スイッチ操作の優先判定
+        // 1. パーツ判定 (まず何かに触れたか確認)
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
-        
+
+        // 2. スイッチ操作の優先判定 (シミュレーション中、またはスライドスイッチの場合)
         if (hitC && (hitC.type === 'PSW' || hitC.type === 'SSW')) {
-            if (isSimulating) {
-                // シミュレーション中なら状態を反転
-                if (hitC.type === 'PSW') {
-                    hitC.state = true; // Push SWはMouseDownでON
+            // スライドスイッチはいつでも、プッシュスイッチはシミュレーション中のみ反応
+            if (hitC.type === 'SSW' || (hitC.type === 'PSW' && isSimulating)) {
+                if (hitC.type === 'SSW') {
+                    hitC.state = !hitC.state; // トグル
                 } else {
-                    hitC.state = !hitC.state; // Slide SWはトグル
+                    hitC.state = true; // PushはMouseDownでON
                 }
                 selectedObj = { type: 'comp', ref: hitC };
                 updateUI();
-                return; // 探索へ
+                
+                // 【重要】スイッチを操作したときはドラッグさせない
+                if (isSimulating) return; 
             }
         }
 
-        // 2. ピン判定（配線開始/終了）
+        // 3. ピン判定（配線開始/終了）
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
@@ -55,12 +58,12 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 3. 配線中の曲げ
+        // 4. 配線中の曲げ
         if (activeLine) {
             activeLine.points.push({ x: pos.x, y: pos.y }); return;
         }
 
-        // 4. 配線選択
+        // 5. 配線選択
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
@@ -76,7 +79,7 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 5. パーツドラッグ（スイッチ以外、または非シミュレーション時）
+        // 6. パーツドラッグ（スイッチの操作以外、または停止中）
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
             draggingObj = hitC;
