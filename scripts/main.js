@@ -1,32 +1,26 @@
 /**
- * main.js - System Initialization & Main Loop
+ * main.js - Button Text Toggle & Main Loop
  */
 
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
 const viewport = document.getElementById('viewport');
 
-// キャンバスのサイズを親要素に合わせる関数
 function resizeCanvas() {
-    // 親要素のサイズを取得
     const w = viewport.clientWidth;
     const h = viewport.clientHeight;
-    
-    // サイズが取得できている場合のみ更新
     if (w > 0 && h > 0) {
         canvas.width = w;
         canvas.height = h;
     }
 }
 
-// 初期化
 window.addEventListener('load', () => {
     resizeCanvas();
     initUIListeners();
     requestAnimationFrame(draw);
 });
 
-// ウィンドウリサイズ時にも追従
 window.addEventListener('resize', resizeCanvas);
 
 // --- グローバル変数 ---
@@ -39,29 +33,28 @@ let dragOffset = { x: 0, y: 0 };
 let activeLine = null;
 let mouse = { x: 0, y: 0 };
 
-// ボタンイベント
+// ボタンイベント (テキスト切り替え)
 document.getElementById('startBtn').addEventListener('click', () => {
     isSimulating = !isSimulating;
-    document.getElementById('startBtn').classList.toggle('active', isSimulating);
+    const btn = document.getElementById('startBtn');
+    btn.classList.toggle('active', isSimulating);
+    // 状態に応じてテキストを変更
+    btn.innerText = isSimulating ? "STOP SYSTEM" : "RUN SYSTEM";
 });
 
 document.getElementById('delBtn').addEventListener('click', deleteSelected);
 
-// --- メインループ ---
+// --- メインループ (変更なし) ---
 function draw() {
     updateSimulation();
-    
-    // 背景（viewportのサイズに合わせてクリア）
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // ズームとパンの適用 (ui.jsで定義)
     if (typeof offset !== 'undefined' && typeof zoom !== 'undefined') {
         ctx.translate(offset.x, offset.y);
         ctx.scale(zoom, zoom);
     }
 
-    // グリッド描画
     drawGrid();
 
     // 配線描画
@@ -77,10 +70,8 @@ function draw() {
         ctx.stroke();
     });
 
-    // コンポーネント描画
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
-    // 配線作成中のプレビュー
     if (activeLine) {
         const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
         const pts = [pStart, ...activeLine.points, mouse];
@@ -101,10 +92,7 @@ function drawGrid() {
     const top = -offset.y / zoom;
     const right = (canvas.width - offset.x) / zoom;
     const bottom = (canvas.height - offset.y) / zoom;
-
-    ctx.strokeStyle = '#f1f1f1'; 
-    ctx.lineWidth = 1/zoom;
-    
+    ctx.strokeStyle = '#f1f1f1'; ctx.lineWidth = 1/zoom;
     ctx.beginPath();
     for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
         ctx.moveTo(i, top); ctx.lineTo(i, bottom);
