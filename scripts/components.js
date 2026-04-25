@@ -5,7 +5,8 @@ function addComponent(type) {
     const obj = { 
         id, type, x: 200, y: 200, 
         val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), 
-        currentI: 0, state: false, isBlown: false
+        currentI: 0, state: false, isBlown: false,
+        isPowered: false, inputActive: false // ロジックIC用フラグ
     };
 
     if (type === 'BAT') {
@@ -22,11 +23,11 @@ function addComponent(type) {
         obj.pins = [
             { id: id+'vcc', type: 'VCC', relX: 10, relY: 0, label: 'V' },
             { id: id+'gnd', type: 'GND', relX: 110, relY: 60, label: 'G' },
-            { id: id+'in1', type: 'IN', relX: 30, relY: 60, label: 'I1' },
-            { id: id+'out1', type: 'OUT', relX: 30, relY: 0, label: 'O1' }
+            { id: id+'in1', type: 'IN', relX: 30, relY: 60, label: 'I' },
+            { id: id+'out1', type: 'OUT', relX: 30, relY: 0, label: 'O' }
         ];
     } else if (type === 'NPN' || type === 'PNP') {
-        obj.type = 'TR'; // engine.jsの判定に合わせる
+        obj.type = 'TR';
         obj.trType = type; 
         obj.w = 60; obj.h = 60;
         obj.pins = [
@@ -61,8 +62,11 @@ function drawComponent(ctx, c, isSelected, zoom) {
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*50, 1)})`;
         ctx.fill(); ctx.stroke();
     } else if (c.type === 'NOT_IC') {
-        ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y, w, h);
-        ctx.fillStyle = '#fff'; ctx.font = "10px Arial"; ctx.fillText("74HC14 NOT", x+25, y+35);
+        ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        // 通電状態によってテキストの色を変える
+        ctx.fillStyle = c.isPowered ? '#2ecc71' : '#fff'; 
+        ctx.font = "bold 11px Arial";
+        ctx.fillText(c.isPowered ? "74HC14 (LIVE)" : "74HC14", x+20, y+35);
     } else if (c.type === 'BAT') {
         ctx.fillStyle = c.isShort ? '#e74c3c' : '#fff';
         ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
@@ -77,5 +81,9 @@ function drawComponent(ctx, c, isSelected, zoom) {
         ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 6, 0, Math.PI * 2);
         ctx.fillStyle = (p.type === 'POS' || p.type === 'VCC') ? '#e74c3c' : (p.type === 'NEG' || p.type === 'GND') ? '#3498db' : '#95a5a6';
         ctx.fill(); ctx.stroke();
+        if(p.label){
+            ctx.fillStyle = "#000"; ctx.font = "8px Arial";
+            ctx.fillText(p.label, x + p.relX - 4, y + p.relY + (p.relY === 0 ? -8 : 15));
+        }
     });
 }
