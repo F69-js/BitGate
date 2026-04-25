@@ -1,5 +1,5 @@
 /**
- * ui.js - Global variables for zoom and offset
+ * ui.js - Interaction with Zoom Correction
  */
 
 var zoom = 1.0;
@@ -30,7 +30,7 @@ function initUIListeners() {
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        const nextZoom = Math.min(Math.max(zoom * delta, 0.2), 5);
+        const nextZoom = Math.min(Math.max(zoom * delta, 0.1), 10);
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -52,7 +52,7 @@ function initUIListeners() {
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
-                // 当たり判定の距離もズームで割って一定にする
+                // ズームしても「指で狙う範囲」を一定にする
                 if (Math.hypot(pos.x - (c.x + p.relX), pos.y - (c.y + p.relY)) < 15 / zoom) {
                     hitPin = { comp: c, pin: p }; break;
                 }
@@ -79,7 +79,6 @@ function initUIListeners() {
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
             const pts = [pStart, ...w.points, pEnd];
             for (let i = 0; i < pts.length - 1; i++) {
-                // 配線の当たり判定もズームに合わせて補正
                 if (distToSegment(pos, pts[i], pts[i+1]) < 10 / zoom) return true;
             }
             return false;
