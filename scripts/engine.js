@@ -1,15 +1,18 @@
 function updateSimulation() {
     components.forEach(c => {
         c.currentI = 0;
+        // 充電フラグを一旦リセット
         c.isBeingCharged = false;
         if (c.type === 'BAT') c.isShort = false;
         if (c.type === 'TR') c.isBaseActive = false;
-        if (c.type === 'NOT_IC') { c.isPowered = false; }
     });
     
     if (!isSimulating) return;
 
     const batteries = components.filter(c => c.type === 'BAT');
+    const capacitors = components.filter(c => c.type === 'CAP');
+
+    // 1. まず電池からの給電と充電を計算
     batteries.forEach(bat => {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
@@ -17,16 +20,24 @@ function updateSimulation() {
         processPowerSource(bat, posP, negP, Number(bat.val), true);
     });
 
-    const capacitors = components.filter(c => c.type === 'CAP');
+    // 2. 次にコンデンサの放電を計算（電池からの充電がない場合のみ）
     capacitors.forEach(cap => {
         if (!cap.isBeingCharged && cap.charge > 0.01) {
-            // コンデンサ自身を電源として、Pin1(＋想定)からPin2(－想定)へのパスを探す
+            // コンデンサ自身を電源として放電パスを回す
             processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
         }
     });
 
+    // 自然放電（微量）
+    capacitors.forEach(c => {
+        if (!c.isBeingCharged && c.currentI === 0) c.charge *= 0.999;
+    });
+
     const statusDisp = document.getElementById('statusDisp');
-    if (statusDisp) statusDisp.innerText = "SYSTEM: " + batteries.reduce((s, b) => s + b.currentI, 0).toFixed(3) + " A";
+    if (statusDisp) {
+        const totalA = batteries.reduce((s, b) => s + b.currentI, 0);
+        statusDisp.innerText = "SYSTEM: " + totalA.toFixed(3) + " A";
+    }
 }
 
 function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
@@ -42,15 +53,15 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
             const inPin = comp.pins.find(p => p.id === currentPinId);
             if (inPin) {
                 let canPass = false;
-                // 放電パスとしてTRのベース(B)も許可する
-                if (comp.type === 'RES' || comp.type === 'LED' || comp.type === 'CAP' || (comp.type === 'TR' && inPin.type === 'B')) canPass = true;
+                // 通過判定：抵抗、LED、TRのベース、またはON状態のスイッチ
+                if (comp.type === 'RES' || comp.type === 'LED' || (comp.type === 'TR' && inPin.type === 'B')) canPass = true;
+                else if (comp.type === 'CAP') canPass = true;
                 else if (comp.type === 'PSW' || comp.type === 'SSW') canPass = comp.state;
                 else if (comp.type === 'TR' && (inPin.type === 'C' || inPin.type === 'E')) canPass = comp.isBaseActive;
 
                 if (canPass) {
                     for (let outPin of comp.pins) {
                         if (outPin.id !== currentPinId && !visitedPins.has(outPin.id)) {
-                            // TRのBに入ったらE（またはC）へ抜けるパスを許可
                             visitedPins.add(outPin.id);
                             currentPathComps.push(comp);
                             findPaths(outPin.id, visitedPins, currentPathComps);
@@ -76,24 +87,28 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
     allPaths.forEach(path => {
         let r = path.reduce((sum, c) => {
             if (c.type === 'RES') return sum + Number(c.val);
-            if (c.type === 'TR') return sum + 500; // ベース抵抗的な内部抵抗
-            return sum + 20;
+            if (c.type === 'TR') return sum + 1000; // TRのベース抵抗をシミュレート
+            if (c.type === 'LED') return sum + 20;
+            return sum + 1;
         }, 1);
         
         const pAmp = voltage / r;
-        const dt = 0.1;
-        const sensitivity = 0.00001; 
+        const dt = 0.05; 
+        // 1uFで一瞬、1000uFで数秒になる係数
+        const capScale = 0.000002; 
 
         path.forEach(c => {
             c.currentI += pAmp;
             if (c.type === 'CAP' && isExternalBat) {
                 c.isBeingCharged = true;
-                c.charge = Math.min(voltage, c.charge + (pAmp * dt) / (Math.max(1, c.val) * sensitivity * 10));
+                // 充電
+                c.charge = Math.min(voltage, c.charge + (pAmp * dt) / (Math.max(1, c.val) * capScale * 5));
             }
         });
 
         if (!isExternalBat) {
-            source.charge = Math.max(0, source.charge - (pAmp * dt) / (Math.max(1, source.val) * sensitivity));
+            // 放電：電荷を減らす
+            source.charge = Math.max(0, source.charge - (pAmp * dt) / (Math.max(1, source.val) * capScale));
         }
     });
 }
@@ -102,9 +117,9 @@ function checkLogicalStates(bat, posP, negP) {
     components.forEach(comp => {
         if (comp.type === 'TR') {
             const bP = comp.pins.find(p => p.type === 'B');
-            // 電池に直結しているか、またはコンデンサの電荷が一定以上あるか
             const hasDirectPos = isConnected(bP.id, posP.id);
             const capV = getConnectedCapVoltage(bP.id);
+            // 0.6V以上の電圧があればTRをONにする
             comp.isBaseActive = hasDirectPos || (capV > 0.6);
         }
     });
