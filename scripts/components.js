@@ -42,6 +42,7 @@ function addComponent(type) {
         ];
         for(let i=1; i<=6; i++) obj['inputActive'+i] = false;
     } else if (type === 'NPN' || type === 'PNP') {
+        // ここがポイント: 渡されたのがNPN/PNPなら、タイプをTRに統一してtrTypeをセット
         obj.type = 'TR';
         obj.trType = type; 
         obj.w = 60; obj.h = 60;
@@ -50,6 +51,9 @@ function addComponent(type) {
             { id: id+'b', type: 'B', relX: 0, relY: 30, label: 'B' },
             { id: id+'e', type: 'E', relX: 30, relY: 60, label: 'E' }
         ];
+    } else if (type === 'PSW' || type === 'SSW') {
+        obj.w = 50; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
     } else {
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
@@ -57,7 +61,7 @@ function addComponent(type) {
     components.push(obj);
 }
 
-function drawComponent(ctx, c, isSelected, zoom) {
+function drawComponent(ctx, c, isSelected) {
     const {x, y, w, h} = c;
     ctx.strokeStyle = isSelected ? '#2ecc71' : '#222';
     ctx.lineWidth = 2;
@@ -81,7 +85,6 @@ function drawComponent(ctx, c, isSelected, zoom) {
         const fillLevel = Math.min(c.charge / 9, 1);
         ctx.fillStyle = `rgba(52, 152, 219, ${0.4 + fillLevel * 0.6})`;
         ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
-        // 容量ラベルを表示
         ctx.fillStyle = "#000"; ctx.font = "10px Arial";
         ctx.fillText(c.val + "uF", x, y - 5);
     } else if (c.type === 'LED') {
@@ -98,6 +101,12 @@ function drawComponent(ctx, c, isSelected, zoom) {
         ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
         ctx.fillStyle = c.isShort ? '#fff' : '#000';
         ctx.font = "bold 12px Arial"; ctx.fillText(c.val + "V PWR", x+10, y+35);
+    } else if (c.type === 'TR') {
+        // トランジスタの描画
+        ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 25, 0, Math.PI*2);
+        ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+        ctx.font = "bold 10px Arial"; ctx.fillStyle = "#000";
+        ctx.fillText(c.trType, x+w/2-12, y+h/2+4);
     } else {
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(x+10, y+10, w-20, h-20); ctx.strokeRect(x, y, w, h);
