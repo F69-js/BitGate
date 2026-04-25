@@ -4,7 +4,7 @@ let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
 let isSpacePressed = false;
-let draggingNode = null;
+let draggingNode = null; // ドラッグ中の頂点 { wire, index }
 
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -41,12 +41,14 @@ function initUIListeners() {
         dragStartPos = { ...pos };
         lastMousePos = { x: e.clientX, y: e.clientY };
 
+        // スペースキーまたは中ボタンでパン
         if (e.buttons === 4 || (e.buttons === 1 && isSpacePressed)) {
             isPanning = true; return;
         }
+        // 右クリックでキャンセル
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
 
-        // 1. ピンの判定 (配線開始)
+        // 1. ピンの判定（配線の開始・結合）
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
@@ -56,16 +58,29 @@ function initUIListeners() {
             }
             if (hitPin) break;
         }
+
         if (hitPin) {
-            if (!activeLine) { activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] }; } 
-            else {
-                wires.push({ from: { comp: activeLine.startComp, pin: activeLine.startPin }, to: { comp: hitPin.comp, pin: hitPin.pin }, points: [...activeLine.points] });
+            if (!activeLine) {
+                activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
+            } else {
+                // 配線を確定
+                wires.push({ 
+                    from: { comp: activeLine.startComp, pin: activeLine.startPin }, 
+                    to: { comp: hitPin.comp, pin: hitPin.pin }, 
+                    points: [...activeLine.points] 
+                });
                 activeLine = null;
             }
             updateUI(); return;
         }
 
-        // 2. 配線の「頂点(Node)」ドラッグ判定 (選択中のみ)
+        // 2. 配線作成中に「何もない場所」をクリックしたなら角を追加
+        if (activeLine) {
+            activeLine.points.push({ x: pos.x, y: pos.y });
+            return;
+        }
+
+        // 3. 選択中の配線の「頂点」ドラッグ判定
         if (selectedObj?.type === 'wire') {
             const w = selectedObj.ref;
             for (let i = 0; i < w.points.length; i++) {
@@ -76,7 +91,7 @@ function initUIListeners() {
             }
         }
 
-        // 3. 配線全体の判定 (選択)
+        // 4. 配線自体の選択判定
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
@@ -88,7 +103,7 @@ function initUIListeners() {
         });
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
-        // 4. コンポーネントのドラッグ判定
+        // 5. コンポーネントの判定
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
@@ -112,7 +127,6 @@ function initUIListeners() {
         mouse = getMousePos(e);
 
         if (draggingNode) {
-            // 配線の頂点を移動
             draggingNode.wire.points[draggingNode.index].x = mouse.x;
             draggingNode.wire.points[draggingNode.index].y = mouse.y;
         } else if (draggingObj) { 
@@ -122,10 +136,19 @@ function initUIListeners() {
         lastMousePos = mouseRaw;
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
+        const pos = getMousePos(e);
+        const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
+        
+        // クリック動作（トグルスイッチなど）
+        if (!isPanning && moveDist < 5 && selectedObj?.type === 'comp') {
+            const c = selectedObj.ref;
+            if (c.type === 'SSW') c.state = !c.state;
+        }
+
         components.forEach(c => { if (c.type === 'PSW') c.state = false; });
         draggingObj = null;
-        draggingNode = null; // 解放
+        draggingNode = null;
         isPanning = false;
     });
 
