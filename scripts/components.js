@@ -1,5 +1,5 @@
 /**
- * components.js - Component Definitions & Drawing
+ * components.js - Drawing with Zoom Compensation
  */
 
 const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
@@ -42,10 +42,10 @@ function addComponent(type) {
 }
 
 function drawComponent(ctx, c, isSelected) {
-    // ズームによらず一定の線幅にするための補正値
-    const baseLW = 2 / zoom;
+    // ズーム倍率で割ることで、画面上の見た目の太さを一定(2px)に保つ
+    const fixedLW = 2 / zoom;
     ctx.strokeStyle = isSelected ? '#2ecc71' : '#222';
-    ctx.lineWidth = baseLW; 
+    ctx.lineWidth = fixedLW;
     ctx.fillStyle = '#fff';
     
     if (c.type === 'RES') {
@@ -83,7 +83,7 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillRect(c.x+10, c.y+10, 30, 20); ctx.strokeRect(c.x, c.y, c.w, c.h);
     }
 
-    // 端子の丸をズームによらず一定の大きさにする
+    // 端子の丸：半径自体をズームで割ることで、見た目の大きさを一定にする
     c.pins.forEach(p => {
         ctx.beginPath(); 
         ctx.arc(c.x+p.relX, c.y+p.relY, 6 / zoom, 0, Math.PI*2);
