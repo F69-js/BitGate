@@ -1,40 +1,68 @@
+/**
+ * main.js - System Initialization & Main Loop
+ */
+
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
-let isSimulating = false, components = [], wires = [], activeLine = null;
-let draggingObj = null, draggingPoint = null, dragOffset = {x:0, y:0}, selectedObj = null, mouse = {x:0, y:0};
+const viewport = document.getElementById('viewport');
 
+// キャンバスのサイズを親要素に合わせる関数
 function resizeCanvas() {
-    canvas.width = viewport.clientWidth;
-    canvas.height = viewport.clientHeight;
+    // 親要素のサイズを取得
+    const w = viewport.clientWidth;
+    const h = viewport.clientHeight;
+    
+    // サイズが取得できている場合のみ更新
+    if (w > 0 && h > 0) {
+        canvas.width = w;
+        canvas.height = h;
+    }
 }
+
+// 初期化
+window.addEventListener('load', () => {
+    resizeCanvas();
+    initUIListeners();
+    requestAnimationFrame(draw);
+});
+
+// ウィンドウリサイズ時にも追従
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-// マウスの状態を管理
-let isMouseDown = false;
+
+// --- グローバル変数 ---
+let components = [];
+let wires = [];
+let isSimulating = false;
+let selectedObj = null;
+let draggingObj = null;
+let dragOffset = { x: 0, y: 0 };
+let activeLine = null;
+let mouse = { x: 0, y: 0 };
+
+// ボタンイベント
+document.getElementById('startBtn').addEventListener('click', () => {
+    isSimulating = !isSimulating;
+    document.getElementById('startBtn').classList.toggle('active', isSimulating);
+});
+
+document.getElementById('delBtn').addEventListener('click', deleteSelected);
+
+// --- メインループ ---
 function draw() {
     updateSimulation();
     
+    // 背景（viewportのサイズに合わせてクリア）
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // ズームとパンの適用
-    ctx.translate(offset.x, offset.y);
-    ctx.scale(zoom, zoom);
-
-    // Grid描画 (無限グリッドっぽく見せるために範囲を広げて描画)
-    ctx.strokeStyle = '#f1f1f1'; ctx.lineWidth = 1/zoom;
-    const gridStep = 50;
-    const left = -offset.x / zoom;
-    const top = -offset.y / zoom;
-    const right = (canvas.width - offset.x) / zoom;
-    const bottom = (canvas.height - offset.y) / zoom;
-
-    for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
-        ctx.beginPath(); ctx.moveTo(i, top); ctx.lineTo(i, bottom); ctx.stroke();
+    // ズームとパンの適用 (ui.jsで定義)
+    if (typeof offset !== 'undefined' && typeof zoom !== 'undefined') {
+        ctx.translate(offset.x, offset.y);
+        ctx.scale(zoom, zoom);
     }
-    for(let i = Math.floor(top/gridStep)*gridStep; i < bottom; i += gridStep) {
-        ctx.beginPath(); ctx.moveTo(left, i); ctx.lineTo(right, i); ctx.stroke();
-    }
+
+    // グリッド描画
+    drawGrid();
 
     // 配線描画
     wires.forEach(w => {
@@ -49,10 +77,10 @@ function draw() {
         ctx.stroke();
     });
 
-    // 各コンポーネント描画
+    // コンポーネント描画
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
-    // 作成中の配線
+    // 配線作成中のプレビュー
     if (activeLine) {
         const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
         const pts = [pStart, ...activeLine.points, mouse];
@@ -63,24 +91,26 @@ function draw() {
         ctx.stroke(); ctx.setLineDash([]);
     }
 
-    ctx.restore(); // ズーム設定をリセット（UIパーツを別途描画する場合のため）
-    
+    ctx.restore();
     requestAnimationFrame(draw);
 }
 
-// UIイベントの初期化
-initUIListeners();
+function drawGrid() {
+    const gridStep = 50;
+    const left = -offset.x / zoom;
+    const top = -offset.y / zoom;
+    const right = (canvas.width - offset.x) / zoom;
+    const bottom = (canvas.height - offset.y) / zoom;
 
-document.getElementById('startBtn').addEventListener('click', e => {
-    isSimulating = !isSimulating;
-    e.target.classList.toggle('active', isSimulating);
-    e.target.textContent = isSimulating ? "STOP SYSTEM" : "RUN SYSTEM";
-});
-
-document.getElementById('valInput').addEventListener('input', e => {
-    if (selectedObj?.type === 'comp') selectedObj.ref.val = parseFloat(e.target.value) || 0;
-});
-
-document.getElementById('delBtn').addEventListener('click', () => deleteSelected());
-
-draw();
+    ctx.strokeStyle = '#f1f1f1'; 
+    ctx.lineWidth = 1/zoom;
+    
+    ctx.beginPath();
+    for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
+        ctx.moveTo(i, top); ctx.lineTo(i, bottom);
+    }
+    for(let i = Math.floor(top/gridStep)*gridStep; i < bottom; i += gridStep) {
+        ctx.moveTo(left, i); ctx.lineTo(right, i);
+    }
+    ctx.stroke();
+}
