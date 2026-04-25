@@ -1,5 +1,9 @@
+/**
+ * BitGate Engine v1.1.1 - Circuit Simulation Logic
+ * 修正内容: ショート判定の安定化と経路計算の精度向上
+ */
+
 function updateSimulation() {
-    // 1. 全状態のリセット
     components.forEach(c => {
         c.currentI = 0;
         if (c.type === 'BAT') c.isShort = false;
@@ -10,7 +14,6 @@ function updateSimulation() {
         return;
     }
 
-    // 2. 各電源（BAT）ごとに回路を探索
     components.filter(c => c.type === 'BAT').forEach(bat => {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
@@ -18,7 +21,7 @@ function updateSimulation() {
 
         let visitedPins = new Set();
         let queue = [posP.id]; 
-        let parentMap = new Map(); // 経路復元用: { 到着ピンID: { fromPinId, viaComp } }
+        let parentMap = new Map();
         let closed = false;
         let lastPinId = null;
 
@@ -28,33 +31,26 @@ function updateSimulation() {
             if (visitedPins.has(currPinId)) continue;
             visitedPins.add(currPinId);
             
-            // マイナス端子に到達したか確認
             if (currPinId === negP.id) {
                 closed = true;
                 lastPinId = currPinId;
-                break; // 到達したら探索終了
+                break;
             }
 
-            // A. 配線（Wire）を介して移動
+            // A. 配線経由
             for (let w of wires) {
-                let nextPinId = null;
-                if (w.from.pin.id === currPinId) nextPinId = w.to.pin.id;
-                else if (w.to.pin.id === currPinId) nextPinId = w.from.pin.id;
-
+                let nextPinId = (w.from.pin.id === currPinId) ? w.to.pin.id : (w.to.pin.id === currPinId) ? w.from.pin.id : null;
                 if (nextPinId && !visitedPins.has(nextPinId)) {
                     queue.push(nextPinId);
                     parentMap.set(nextPinId, { fromPinId: currPinId, viaComp: null });
                 }
             }
 
-            // B. コンポーネント内部を介して移動
+            // B. コンポーネント内部経由
             for (let comp of components) {
-                const hasThisPin = comp.pins.some(p => p.id === currPinId);
-                if (hasThisPin) {
+                if (comp.pins.some(p => p.id === currPinId)) {
                     const isSwitch = (comp.type === 'PSW' || comp.type === 'SSW');
-                    const canPass = isSwitch ? comp.state === true : true;
-
-                    if (canPass) {
+                    if (!isSwitch || comp.state === true) {
                         for (let p of comp.pins) {
                             if (p.id !== currPinId && !visitedPins.has(p.id)) {
                                 queue.push(p.id);
@@ -68,10 +64,7 @@ function updateSimulation() {
 
         // --- 電流計算フェーズ ---
         if (closed) {
-            let totalR = 0;
             let actualPathComps = new Set();
-
-            // parentMapを逆流して、実際に電気が通っている部品だけを特定
             let traceId = lastPinId;
             while (traceId && parentMap.has(traceId)) {
                 let edge = parentMap.get(traceId);
@@ -79,17 +72,27 @@ function updateSimulation() {
                 traceId = edge.fromPinId;
             }
 
-            // 抵抗の合計計算
+            // 抵抗の計算（配線抵抗 0.01Ω を隠し味に追加して「真のゼロ」を防ぐ）
+            let totalR = 0.01; 
             actualPathComps.forEach(c => {
-                if (c.type === 'RES' || c.type === 'LED') {
-                    totalR += c.isBlown ? 10000000 : c.val;
+                if (c.type === 'RES') {
+                    totalR += c.isBlown ? 10000000 : (parseFloat(c.val) || 0);
+                } else if (c.type === 'LED') {
+                    // LEDは点灯時に一定の抵抗値を持つものとする（簡易化）
+                    totalR += c.isBlown ? 10000000 : (parseFloat(c.val) || 20); 
+                } else {
+                    // スイッチなどもごくわずかに抵抗があるものとする
+                    totalR += 0.01;
                 }
             });
 
-            // 抵抗がほぼゼロならショート
+            // ショート判定のしきい値を少し緩和（0.1Ω以下をショートとする）
             if (totalR < 0.1) {
                 bat.isShort = true;
                 document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
+                // ショート時も一応猛烈な電流が流れていることにする
+                const shortAmp = bat.val / 0.01;
+                actualPathComps.forEach(c => c.currentI = shortAmp);
                 return;
             }
 
@@ -97,7 +100,8 @@ function updateSimulation() {
             actualPathComps.forEach(c => {
                 c.currentI = amp;
                 if (c.type === 'LED' && !c.isBlown) {
-                    if (amp > 0.03 || (bat.val > 5.0 && totalR < 50)) {
+                    // 電流または電圧過多で死亡判定
+                    if (amp > 0.05 || (bat.val > 12 && totalR < 100)) {
                         c.isBlown = true;
                     }
                 }
