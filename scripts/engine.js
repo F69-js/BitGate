@@ -19,19 +19,22 @@ function updateSimulation() {
 
     const capacitors = components.filter(c => c.type === 'CAP');
     capacitors.forEach(cap => {
+        // 電荷がある程度残っていて、かつ今現在充電されていない場合のみ放電プロセス
         if (!cap.isBeingCharged && cap.charge > 0.01) {
             processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
         }
     });
 
+    // 自然放電（漏れ電流）のシミュレート：ここを少し早めても良い
     capacitors.forEach(c => {
         if (c.currentI === 0 && c.charge > 0) {
-            c.charge *= 0.9998; // 自然放電をさらに緩やかに
+            c.charge *= 0.995; // 以前より少しだけ自然減衰を速める
         }
     });
 
     const totalDisplayAmp = batteries.reduce((s, c) => s + c.currentI, 0);
-    document.getElementById('statusDisp').innerText = "SYSTEM: " + totalDisplayAmp.toFixed(3) + " A";
+    const statusDisp = document.getElementById('statusDisp');
+    if (statusDisp) statusDisp.innerText = "SYSTEM: " + totalDisplayAmp.toFixed(3) + " A";
 }
 
 function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
@@ -105,26 +108,28 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
 
         pathData.forEach(p => {
             const pAmp = voltage / p.r;
-            // dtを固定しつつ、val(uF)で充放電の速度を制御
-            const dt = 0.05; 
+            const dt = 0.1; // タイムステップを少し広げて計算を回す
 
             p.path.forEach(c => {
                 c.currentI += pAmp;
                 if (c.type === 'LED' && c.currentI > 0.05) c.isBlown = true;
                 
                 if (c.type === 'CAP') {
-                    const capFarad = Math.max(1, Number(c.val)) * 1e-6;
+                    const capValue = Math.max(1, Number(c.val));
                     if (isExternalBat) {
                         c.isBeingCharged = true;
-                        const dV = (pAmp * dt) / (capFarad * 100); // 調整係数
+                        // 充電速度を向上
+                        const dV = (pAmp * dt) / (capValue * 0.0001); 
                         c.charge = Math.min(voltage, c.charge + dV);
                     }
                 }
             });
 
+            // 放電側（ソースがコンデンサの場合）
             if (!isExternalBat) {
-                const capFarad = Math.max(1, Number(source.val)) * 1e-6;
-                const dV = (pAmp * dt) / (capFarad * 100);
+                const capValue = Math.max(1, Number(source.val));
+                // 放電速度を調整：容量が小さいほどガクッと減るように
+                const dV = (pAmp * dt) / (capValue * 0.0001);
                 source.charge = Math.max(0, source.charge - dV);
             }
         });
@@ -146,7 +151,9 @@ function checkLogicalStates(bat, posP, negP) {
             }
         } else if (comp.type === 'TR') {
             const bP = comp.pins.find(p => p.type === 'B');
-            comp.isBaseActive = isConnected(bP.id, posP.id) || (getConnectedCapVoltage(bP.id) > 0.7);
+            const isHigh = isConnected(bP.id, posP.id);
+            const capVoltage = getConnectedCapVoltage(bP.id);
+            comp.isBaseActive = isHigh || (capVoltage > 0.7);
         }
     });
 }
