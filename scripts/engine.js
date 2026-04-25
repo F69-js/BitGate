@@ -1,7 +1,3 @@
-/**
- * engine.js - Logical IC & Current Flow Fixed
- */
-
 function updateSimulation() {
     components.forEach(c => {
         c.currentI = 0;
@@ -15,13 +11,12 @@ function updateSimulation() {
     components.filter(c => c.type === 'BAT').forEach(bat => {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
+        if (!posP || !negP) return;
 
-        // 1. 論理状態の事前スキャン
         checkLogicalStates(bat, posP, negP);
 
-        // 2. 経路探索
         let allPaths = [];
-        function findPaths(currentPinId, visitedPins, currentPathComps) {
+        const findPaths = (currentPinId, visitedPins, currentPathComps) => {
             if (currentPinId === negP.id) {
                 allPaths.push([...currentPathComps]);
                 return;
@@ -29,19 +24,14 @@ function updateSimulation() {
 
             for (let comp of components) {
                 if (comp === bat) continue;
-                if (comp.pins.some(p => p.id === currentPinId)) {
+                const inPin = comp.pins.find(p => p.id === currentPinId);
+                if (inPin) {
                     let canPass = false;
-                    const inPin = comp.pins.find(p => p.id === currentPinId);
-
-                    if (comp.type === 'RES' || comp.type === 'LED') {
-                        canPass = true;
-                    } else if (comp.type === 'PSW' || comp.type === 'SSW') {
-                        canPass = comp.state;
-                    } else if (comp.type === 'TR') {
+                    if (comp.type === 'RES' || comp.type === 'LED') canPass = true;
+                    else if (comp.type === 'PSW' || comp.type === 'SSW') canPass = comp.state;
+                    else if (comp.type === 'TR') {
                         if (inPin.type === 'C' || inPin.type === 'E') canPass = comp.isBaseActive;
                     } else if (comp.type === 'NOT_IC') {
-                        // 【修正】電源ONかつ入力OFFの時、VCCとOUTが内部で繋がる
-                        // これにより、電池(+) -> IC(VCC) -> IC(OUT) -> LED -> 電池(-) というパスが成立する
                         if (comp.isPowered && !comp.inputActive) {
                             if (inPin.type === 'VCC' || inPin.type === 'OUT') canPass = true;
                         }
@@ -51,12 +41,10 @@ function updateSimulation() {
                         for (let outPin of comp.pins) {
                             if (outPin.id !== currentPinId && !visitedPins.has(outPin.id)) {
                                 if (comp.type === 'TR' && outPin.type === 'B') continue;
-                                // NOT_IC内では VCC <-> OUT の間しか電気を通さない
                                 if (comp.type === 'NOT_IC') {
                                     const valid = (inPin.type === 'VCC' && outPin.type === 'OUT') || (inPin.type === 'OUT' && outPin.type === 'VCC');
                                     if (!valid) continue;
                                 }
-
                                 visitedPins.add(outPin.id);
                                 currentPathComps.push(comp);
                                 findPaths(outPin.id, visitedPins, currentPathComps);
@@ -76,11 +64,10 @@ function updateSimulation() {
                     visitedPins.delete(nextPinId);
                 }
             }
-        }
+        };
 
         findPaths(posP.id, new Set([posP.id]), []);
 
-        // 3. 電流計算
         if (allPaths.length > 0) {
             let pathData = allPaths.map(path => {
                 let r = path.reduce((sum, c) => sum + (c.type === 'LED' ? 20 : (c.type === 'RES' ? Number(c.val) : 0.5)), 0.1);
@@ -94,6 +81,10 @@ function updateSimulation() {
                 const pAmp = systemAmp * (totalR / p.r);
                 p.path.forEach(c => c.currentI += pAmp);
             });
+
+            // 焼損判定
+            components.forEach(c => { if (c.type === 'LED' && c.currentI > 0.05) c.isBlown = true; });
+
             document.getElementById('statusDisp').innerText = "LIVE: " + systemAmp.toFixed(3) + " A";
         } else {
             document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
@@ -108,10 +99,10 @@ function checkLogicalStates(bat, posP, negP) {
             const vccPin = comp.pins.find(p => p.type === 'VCC');
             const gndPin = comp.pins.find(p => p.type === 'GND');
 
-            if (comp.type === 'NOT_IC') {
+            if (comp.type === 'NOT_IC' && vccPin && gndPin) {
                 comp.isPowered = isConnected(vccPin.id, posP.id) && isConnected(gndPin.id, negP.id);
                 comp.inputActive = isConnected(inPin.id, posP.id);
-            } else {
+            } else if (comp.type === 'TR' && inPin) {
                 comp.isBaseActive = isConnected(inPin.id, posP.id);
             }
         }
@@ -119,8 +110,7 @@ function checkLogicalStates(bat, posP, negP) {
 }
 
 function isConnected(startId, targetId) {
-    let visited = new Set();
-    let queue = [startId];
+    let visited = new Set(), queue = [startId];
     while(queue.length > 0) {
         let curr = queue.shift();
         if (curr === targetId) return true;
