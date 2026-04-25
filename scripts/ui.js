@@ -1,7 +1,3 @@
-/**
- * ui.js - Interaction with Zoom Correction & Capacitor Support
- */
-
 var zoom = 1.0;
 var offset = { x: 0, y: 0 };
 let isPanning = false;
@@ -52,7 +48,6 @@ function initUIListeners() {
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
-                // ズームにかかわらず判定範囲を一定(15px相当)に保つ
                 if (Math.hypot(pos.x - (c.x + p.relX), pos.y - (c.y + p.relY)) < 15 / zoom) {
                     hitPin = { comp: c, pin: p }; break;
                 }
@@ -133,7 +128,7 @@ function initUIListeners() {
     window.addEventListener('keyup', e => { if (e.code === 'Space') isSpacePressed = false; });
 
     document.getElementById('typeSelect').addEventListener('change', e => {
-        if (selectedObj?.ref.type === 'TR') {
+        if (selectedObj?.type === 'comp' && selectedObj.ref.type === 'TR') {
             selectedObj.ref.trType = e.target.value;
         }
     });
@@ -141,10 +136,8 @@ function initUIListeners() {
     document.getElementById('valInput').addEventListener('input', e => {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
-            // 数値入力対応のコンポーネント判定
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
                 c.val = Number(e.target.value);
-                // コンデンサの容量変更時は電荷をリセット
                 if (c.type === 'CAP') c.charge = 0;
             }
         }
@@ -165,25 +158,19 @@ function updateUI() {
             const c = selectedObj.ref;
             ea.style.visibility = 'visible';
 
-            // 数値入力を表示するタイプ（電池、抵抗、コンデンサ）
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
                 vi.style.display = 'inline'; 
                 ts.style.display = 'none';
-                
                 if (c.type === 'BAT') tl.innerText = 'POWER (V)';
                 else if (c.type === 'RES') tl.innerText = 'RES (Ω)';
                 else if (c.type === 'CAP') tl.innerText = 'CAP (μF)';
-                
                 vi.value = c.val;
-            } 
-            // トランジスタの種類選択
-            else if (c.type === 'TR') {
+            } else if (c.type === 'TR') {
                 vi.style.display = 'none'; 
                 ts.style.display = 'inline';
                 tl.innerText = 'TYPE'; 
                 ts.value = c.trType;
-            } 
-            else { 
+            } else { 
                 ea.style.visibility = 'hidden'; 
             }
         } else { 
