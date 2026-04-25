@@ -59,11 +59,7 @@ function initUIListeners() {
             if (!activeLine) {
                 activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
-                wires.push({ 
-                    from: { comp: activeLine.startComp, pin: activeLine.startPin }, 
-                    to: { comp: hitPin.comp, pin: hitPin.pin }, 
-                    points: [...activeLine.points] 
-                });
+                wires.push({ from: { comp: activeLine.startComp, pin: activeLine.startPin }, to: { comp: hitPin.comp, pin: hitPin.pin }, points: [...activeLine.points] });
                 activeLine = null;
             }
             updateUI(); return;
@@ -128,9 +124,7 @@ function initUIListeners() {
     window.addEventListener('keyup', e => { if (e.code === 'Space') isSpacePressed = false; });
 
     document.getElementById('typeSelect').addEventListener('change', e => {
-        if (selectedObj?.type === 'comp' && selectedObj.ref.type === 'TR') {
-            selectedObj.ref.trType = e.target.value;
-        }
+        if (selectedObj?.ref.type === 'TR') selectedObj.ref.trType = e.target.value;
     });
 
     document.getElementById('valInput').addEventListener('input', e => {
@@ -145,47 +139,22 @@ function initUIListeners() {
 }
 
 function updateUI() {
-    const delBtn = document.getElementById('delBtn');
-    if (delBtn) delBtn.disabled = !selectedObj;
-    
     const ea = document.getElementById('editArea');
     const ts = document.getElementById('typeSelect');
     const tl = document.getElementById('targetLabel');
     const vi = document.getElementById('valInput');
-
     if (ea) {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             ea.style.visibility = 'visible';
-
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
-                vi.style.display = 'inline'; 
-                ts.style.display = 'none';
-                if (c.type === 'BAT') tl.innerText = 'POWER (V)';
-                else if (c.type === 'RES') tl.innerText = 'RES (Ω)';
-                else if (c.type === 'CAP') tl.innerText = 'CAP (μF)';
+                vi.style.display = 'inline'; ts.style.display = 'none';
+                tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
                 vi.value = c.val;
             } else if (c.type === 'TR') {
-                vi.style.display = 'none'; 
-                ts.style.display = 'inline';
-                tl.innerText = 'TYPE'; 
-                ts.value = c.trType;
-            } else { 
-                ea.style.visibility = 'hidden'; 
-            }
-        } else { 
-            ea.style.visibility = 'hidden'; 
-        }
+                vi.style.display = 'none'; ts.style.display = 'inline';
+                tl.innerText = 'TYPE'; ts.value = c.trType;
+            } else { ea.style.visibility = 'hidden'; }
+        } else { ea.style.visibility = 'hidden'; }
     }
-}
-
-function deleteSelected() {
-    if (!selectedObj) return;
-    if (selectedObj.type === 'comp') {
-        wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
-        components = components.filter(c => c !== selectedObj.ref);
-    } else { 
-        wires = wires.filter(w => w !== selectedObj.ref); 
-    }
-    selectedObj = null; updateUI();
 }
