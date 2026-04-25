@@ -3,6 +3,12 @@ const ctx = canvas.getContext('2d');
 let isSimulating = false, components = [], wires = [], activeLine = null;
 let draggingObj = null, draggingPoint = null, dragOffset = {x:0, y:0}, selectedObj = null, mouse = {x:0, y:0};
 
+function resizeCanvas() {
+    canvas.width = viewport.clientWidth;
+    canvas.height = viewport.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 // マウスの状態を管理
 let isMouseDown = false;
 function draw() {
