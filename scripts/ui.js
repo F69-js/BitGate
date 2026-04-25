@@ -8,9 +8,9 @@ let draggingNode = null; // ドラッグ中の頂点 { wire, index }
 
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
-    return { 
-        x: (e.clientX - rect.left - offset.x) / zoom, 
-        y: (e.clientY - rect.top - offset.y) / zoom 
+    return {
+        x: (e.clientX - rect.left - offset.x) / zoom,
+        y: (e.clientY - rect.top - offset.y) / zoom
     };
 }
 
@@ -64,10 +64,10 @@ function initUIListeners() {
                 activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
                 // 配線を確定
-                wires.push({ 
-                    from: { comp: activeLine.startComp, pin: activeLine.startPin }, 
-                    to: { comp: hitPin.comp, pin: hitPin.pin }, 
-                    points: [...activeLine.points] 
+                wires.push({
+                    from: { comp: activeLine.startComp, pin: activeLine.startPin },
+                    to: { comp: hitPin.comp, pin: hitPin.pin },
+                    points: [...activeLine.points]
                 });
                 activeLine = null;
             }
@@ -97,7 +97,7 @@ function initUIListeners() {
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
             const pts = [pStart, ...w.points, pEnd];
             for (let i = 0; i < pts.length - 1; i++) {
-                if (distToSegment(pos, pts[i], pts[i+1]) < 10 / zoom) return true;
+                if (distToSegment(pos, pts[i], pts[i + 1]) < 10 / zoom) return true;
             }
             return false;
         });
@@ -106,7 +106,7 @@ function initUIListeners() {
         // 5. コンポーネントの判定
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
-            selectedObj = { type: 'comp', ref: hitC }; 
+            selectedObj = { type: 'comp', ref: hitC };
             draggingObj = hitC;
             dragOffset = { x: pos.x - hitC.x, y: pos.y - hitC.y };
             if (hitC.type === 'PSW' && isSimulating) hitC.state = true;
@@ -123,15 +123,15 @@ function initUIListeners() {
             offset.y += mouseRaw.y - lastMousePos.y;
             lastMousePos = mouseRaw; return;
         }
-        
+
         mouse = getMousePos(e);
 
         if (draggingNode) {
             draggingNode.wire.points[draggingNode.index].x = mouse.x;
             draggingNode.wire.points[draggingNode.index].y = mouse.y;
-        } else if (draggingObj) { 
-            draggingObj.x = mouse.x - dragOffset.x; 
-            draggingObj.y = mouse.y - dragOffset.y; 
+        } else if (draggingObj) {
+            draggingObj.x = mouse.x - dragOffset.x;
+            draggingObj.y = mouse.y - dragOffset.y;
         }
         lastMousePos = mouseRaw;
     });
@@ -139,7 +139,7 @@ function initUIListeners() {
     window.addEventListener('mouseup', (e) => {
         const pos = getMousePos(e);
         const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
-        
+
         // クリック動作（トグルスイッチなど）
         if (!isPanning && moveDist < 5 && selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
@@ -183,6 +183,7 @@ function updateUI() {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             ea.style.visibility = 'visible';
+            // NOT_IC は数値設定が不要なので非表示にするロジック
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
                 vi.style.display = 'inline'; ts.style.display = 'none';
                 tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
@@ -190,8 +191,11 @@ function updateUI() {
             } else if (c.type === 'TR') {
                 vi.style.display = 'none'; ts.style.display = 'inline';
                 tl.innerText = 'TYPE'; ts.value = c.trType;
-            } else { ea.style.visibility = 'hidden'; }
-        } else { ea.style.visibility = 'hidden'; }
+            } else {
+                // NOT_IC や Switch 等は編集エリアを隠すか、ラベルだけ出す
+                ea.style.visibility = (c.type === 'NOT_IC' || c.type === 'DIO') ? 'hidden' : 'visible';
+            }
+        }
     }
 }
 
@@ -200,8 +204,8 @@ function deleteSelected() {
     if (selectedObj.type === 'comp') {
         wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
         components = components.filter(c => c !== selectedObj.ref);
-    } else { 
-        wires = wires.filter(w => w !== selectedObj.ref); 
+    } else {
+        wires = wires.filter(w => w !== selectedObj.ref);
     }
     selectedObj = null; updateUI();
 }
