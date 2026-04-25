@@ -1,5 +1,6 @@
 const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
 
+
 function addComponent(type) {
     const id = Date.now();
     const obj = { 
