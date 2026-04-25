@@ -139,6 +139,20 @@ function initUIListeners() {
     });
 
     // トランジスタタイプ切り替えの検知
+// 追加: 数値入力の変更を即座に反映させる
+    const valInput = document.getElementById('valInput');
+    if (valInput) {
+        valInput.addEventListener('input', e => {
+            if (selectedObj?.type === 'comp') {
+                const c = selectedObj.ref;
+                if (c.type === 'BAT' || c.type === 'RES') {
+                    c.val = Number(e.target.value);
+                }
+            }
+        });
+    }
+
+    // トランジスタタイプ切り替え
     const ts = document.getElementById('typeSelect');
     if(ts) ts.addEventListener('change', e => {
         if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
@@ -148,28 +162,35 @@ function initUIListeners() {
 function updateUI() {
     const delBtn = document.getElementById('delBtn');
     if (delBtn) delBtn.disabled = !selectedObj;
+
     const ea = document.getElementById('editArea');
     const ts = document.getElementById('typeSelect');
     const tl = document.getElementById('targetLabel');
+    const vi = document.getElementById('valInput');
+
     if (ea) {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
+            ea.style.visibility = 'visible'; // 編集エリアを表示
+
             if (c.type === 'BAT' || c.type === 'RES') {
-                ea.style.visibility = 'visible';
+                // 抵抗・電池の場合：数値入力を出し、セレクトを隠す
+                vi.style.display = 'inline';
                 ts.style.display = 'none';
                 tl.innerText = c.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
-                document.getElementById('valInput').style.display = 'inline';
-                document.getElementById('valInput').value = c.val;
+                vi.value = c.val;
             } else if (c.type === 'TR') {
-                ea.style.visibility = 'visible';
+                // トランジスタの場合：数値を隠し、セレクトを出す
+                vi.style.display = 'none';
                 ts.style.display = 'inline';
-                document.getElementById('valInput').style.display = 'none';
                 tl.innerText = 'TYPE';
                 ts.value = c.subType;
             } else {
+                // スイッチやLEDなどは編集不可なので隠す
                 ea.style.visibility = 'hidden';
             }
         } else {
+            // 何も選択していない、または配線選択時は隠す
             ea.style.visibility = 'hidden';
         }
     }
