@@ -22,26 +22,7 @@ function addComponent(type) {
     } else if (type === 'CAP') {
         obj.w = 40; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 40, relY: 20 }];
-    } else if (type === 'NOT_IC') {
-        obj.w = 160; obj.h = 80;
-        obj.pins = [
-            { id: id+'vcc', type: 'VCC', relX: 10, relY: 0, label: 'VCC' },
-            { id: id+'gnd', type: 'GND', relX: 150, relY: 80, label: 'GND' },
-            { id: id+'in1',  type: 'IN',  relX: 30,  relY: 80, label: 'I1' },
-            { id: id+'out1', type: 'OUT', relX: 50,  relY: 80, label: 'O1' },
-            { id: id+'in2',  type: 'IN',  relX: 70,  relY: 80, label: 'I2' },
-            { id: id+'out2', type: 'OUT', relX: 90,  relY: 80, label: 'O2' },
-            { id: id+'in3',  type: 'IN',  relX: 110, relY: 80, label: 'I3' },
-            { id: id+'out3', type: 'OUT', relX: 130, relY: 80, label: 'O3' },
-            { id: id+'in4',  type: 'IN',  relX: 30,  relY: 0,  label: 'I4' },
-            { id: id+'out4', type: 'OUT', relX: 50,  relY: 0,  label: 'O4' },
-            { id: id+'in5',  type: 'IN',  relX: 70,  relY: 0,  label: 'I5' },
-            { id: id+'out5', type: 'OUT', relX: 90,  relY: 0,  label: 'O5' },
-            { id: id+'in6',  type: 'IN',  relX: 110, relY: 0,  label: 'I6' },
-            { id: id+'out6', type: 'OUT', relX: 130, relY: 0,  label: 'O6' }
-        ];
-        for(let i=1; i<=6; i++) obj['inputActive'+i] = false;
-    } else if (type === 'NPN' || type === 'PNP' || type === 'TR') {
+    } else if (type === 'TR' || type === 'NPN' || type === 'PNP') {
         obj.type = 'TR';
         obj.trType = (type === 'TR') ? 'NPN' : type; 
         obj.w = 60; obj.h = 60;
@@ -64,9 +45,12 @@ function drawComponent(ctx, c, isSelected) {
 
     if (c.type === 'RES') {
         ctx.fillStyle = '#f3e5ab'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        const s = Math.floor(c.val).toString();
-        let b = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(s[0]), parseInt(s[1]), s.length - 2];
-        b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(x + 15 + (i * 12), y, 7, h); });
+        const valStr = Math.floor(c.val).toString();
+        let colors = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(valStr[0]), parseInt(valStr[1]), valStr.length - 2];
+        colors.forEach((idx, i) => {
+            ctx.fillStyle = COLOR_MAP[idx] || '#000';
+            ctx.fillRect(x + 15 + (i * 12), y, 7, h);
+        });
         ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 55, y, 7, h);
     } else if (c.type === 'CAP') {
         ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
@@ -74,9 +58,10 @@ function drawComponent(ctx, c, isSelected) {
         ctx.moveTo(x + 15, y + 5); ctx.lineTo(x + 15, y + 35);
         ctx.moveTo(x + 25, y + 5); ctx.lineTo(x + 25, y + 35);
         ctx.stroke();
-        const fillLevel = Math.min(c.charge / 9, 1);
-        ctx.fillStyle = `rgba(52, 152, 219, ${0.4 + fillLevel * 0.6})`;
-        ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
+        // 青いアニメーション：c.charge (0V〜9V想定) に基づいて描画
+        const fillH = (c.charge / 9) * 30;
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(x + 16, y + 35, 8, -fillH);
         ctx.fillStyle = "#000"; ctx.font = "10px Arial";
         ctx.fillText(c.val + "uF", x, y - 5);
     } else if (c.type === 'LED') {
@@ -86,14 +71,13 @@ function drawComponent(ctx, c, isSelected) {
     } else if (c.type === 'TR') {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 25, 0, Math.PI*2);
         ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x+20, y+15); ctx.lineTo(x+20, y+45); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+22, y+15); ctx.lineTo(x+22, y+45); ctx.stroke();
         ctx.font = "bold 10px Arial"; ctx.fillStyle = "#000";
-        ctx.fillText(c.trType || "NPN", x+w/2-12, y+h/2+4);
+        ctx.fillText(c.trType || "NPN", x+18, y+35);
     } else if (c.type === 'BAT') {
-        ctx.fillStyle = c.isShort ? '#e74c3c' : '#fff';
-        ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = c.isShort ? '#fff' : '#000';
-        ctx.font = "bold 12px Arial"; ctx.fillText(c.val + "V PWR", x+10, y+35);
+        ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = '#000'; ctx.font = "bold 12px Arial";
+        ctx.fillText(c.val + "V PWR", x+10, y+35);
     } else {
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(x+10, y+10, w-20, h-20); ctx.strokeRect(x, y, w, h);
@@ -101,11 +85,7 @@ function drawComponent(ctx, c, isSelected) {
 
     c.pins.forEach(p => {
         ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 6, 0, Math.PI * 2);
-        ctx.fillStyle = (p.type === 'POS' || p.type === 'VCC') ? '#e74c3c' : (p.type === 'NEG' || p.type === 'GND') ? '#3498db' : '#95a5a6';
+        ctx.fillStyle = (p.type === 'POS') ? '#e74c3c' : (p.type === 'NEG') ? '#3498db' : '#95a5a6';
         ctx.fill(); ctx.stroke();
-        if(p.label){
-            ctx.fillStyle = "#000"; ctx.font = "9px Arial";
-            ctx.fillText(p.label, x + p.relX - 5, y + p.relY + (p.relY <= 0 ? -10 : 18));
-        }
     });
 }
