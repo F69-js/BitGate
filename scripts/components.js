@@ -4,88 +4,94 @@ function addComponent(type) {
     const id = Date.now();
     const obj = { 
         id, type, x: 200, y: 200, 
-        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 1000 : 20), 
-        currentI: 0, state: false, isBlown: false,
-        isPowered: false,
-        charge: 0 
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 1000 : type === 'DIO' ? 0.7 : 20), 
+        currentI: 0, state: false, isBlown: false, charge: 0 
     };
 
     if (type === 'BAT') {
-        obj.w = 100; obj.h = 60;
-        obj.pins = [{ id: id+'p', type: 'POS', relX: 100, relY: 15 }, { id: id+'n', type: 'NEG', relX: 100, relY: 45 }];
+        obj.w = 110; obj.h = 65;
+        obj.pins = [{ id: id+'p', type: 'POS', relX: 110, relY: 20 }, { id: id+'n', type: 'NEG', relX: 110, relY: 45 }];
     } else if (type === 'LED') {
-        obj.w = 50; obj.h = 50;
-        obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 15 }, { id: id+'k', type: 'NEG', relX: 0, relY: 35 }];
-    } else if (type === 'RES') {
-        obj.w = 80; obj.h = 30;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 15 }, { id: id+'2', type: 'NEU', relX: 80, relY: 15 }];
-    } else if (type === 'CAP') {
         obj.w = 40; obj.h = 40;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 40, relY: 20 }];
-    } else if (type === 'TR' || type === 'NPN' || type === 'PNP') {
-        obj.type = 'TR';
-        obj.trType = (type === 'TR') ? 'NPN' : type; 
-        obj.w = 60; obj.h = 60;
+        obj.pins = [{ id: id+'a', type: 'POS', relX: 10, relY: 40 }, { id: id+'k', type: 'NEG', relX: 30, relY: 40 }];
+    } else if (type === 'RES') {
+        obj.w = 80; obj.h = 20;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 10 }, { id: id+'2', type: 'NEU', relX: 80, relY: 10 }];
+    } else if (type === 'CAP') {
+        obj.w = 30; obj.h = 45;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 5, relY: 45 }, { id: id+'2', type: 'NEU', relX: 25, relY: 45 }];
+    } else if (type === 'DIO') { // ダイオード
+        obj.w = 60; obj.h = 20;
+        obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
+    } else if (type === 'TR') {
+        obj.type = 'TR'; obj.trType = 'NPN'; obj.w = 50; obj.h = 50;
         obj.pins = [
-            { id: id+'c', type: 'C', relX: 30, relY: 0, label: 'C' },
-            { id: id+'b', type: 'B', relX: 0, relY: 30, label: 'B' },
-            { id: id+'e', type: 'E', relX: 30, relY: 60, label: 'E' }
+            { id: id+'c', type: 'C', relX: 10, relY: 50, label: 'C' },
+            { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
+            { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
         ];
     } else {
-        obj.w = 50; obj.h = 40;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
+        obj.w = 40; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 40, relY: 20 }];
     }
     components.push(obj);
 }
 
 function drawComponent(ctx, c, isSelected) {
     const {x, y, w, h} = c;
-    ctx.strokeStyle = isSelected ? '#2ecc71' : '#222';
+    ctx.strokeStyle = isSelected ? '#3498db' : '#222';
     ctx.lineWidth = 2;
 
     if (c.type === 'RES') {
-        ctx.fillStyle = '#f3e5ab'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        // 抵抗：実体図風（肌色の円筒）
+        ctx.fillStyle = '#e6ccb3'; 
+        ctx.beginPath(); ctx.roundRect(x+10, y, w-20, h, 5); ctx.fill(); ctx.stroke();
         const valStr = Math.floor(c.val).toString();
         let colors = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(valStr[0]), parseInt(valStr[1]), valStr.length - 2];
         colors.forEach((idx, i) => {
             ctx.fillStyle = COLOR_MAP[idx] || '#000';
-            ctx.fillRect(x + 15 + (i * 12), y, 7, h);
+            ctx.fillRect(x + 20 + (i * 10), y, 6, h);
         });
-        ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 55, y, 7, h);
+    } else if (c.type === 'DIO') {
+        // ダイオード：黒いボディに銀色の帯（カソード側）
+        ctx.fillStyle = '#222'; ctx.fillRect(x+10, y+2, w-20, h-4);
+        ctx.fillStyle = '#ccc'; ctx.fillRect(x+w-25, y+2, 8, h-4); // 極性帯
+        ctx.strokeRect(x+10, y+2, w-20, h-4);
     } else if (c.type === 'CAP') {
-        ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        ctx.beginPath();
-        ctx.moveTo(x + 15, y + 5); ctx.lineTo(x + 15, y + 35);
-        ctx.moveTo(x + 25, y + 5); ctx.lineTo(x + 25, y + 35);
-        ctx.stroke();
-        // 青いアニメーション：c.charge (0V〜9V想定) に基づいて描画
-        const fillH = (c.charge / 9) * 30;
-        ctx.fillStyle = '#3498db';
-        ctx.fillRect(x + 16, y + 35, 8, -fillH);
-        ctx.fillStyle = "#000"; ctx.font = "10px Arial";
-        ctx.fillText(c.val + "uF", x, y - 5);
+        // 電解コンデンサ：青い円筒
+        ctx.fillStyle = '#1e3799'; ctx.fillRect(x, y, w, h-10);
+        ctx.fillStyle = '#ccc'; ctx.fillRect(x, y+2, 5, h-14); // マイナス側の帯
+        ctx.strokeRect(x, y, w, h-10);
+        const fillH = (c.charge / 9) * (h-10);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y+(h-10), w, -fillH);
     } else if (c.type === 'LED') {
-        ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
-        ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*50, 1)})`;
+        // LED：砲弾型
+        ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 0, 0, ${0.3 + Math.min(c.currentI*50, 0.7)})`;
+        ctx.beginPath();
+        ctx.arc(x+w/2, y+15, 15, Math.PI, 0); ctx.lineTo(x+w/2+15, y+35); ctx.lineTo(x+w/2-15, y+35); ctx.closePath();
         ctx.fill(); ctx.stroke();
+        if(!c.isBlown && c.currentI > 0.001) { // 発光エフェクト
+            ctx.shadowBlur = 15; ctx.shadowColor = "red"; ctx.stroke(); ctx.shadowBlur = 0;
+        }
     } else if (c.type === 'TR') {
-        ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 25, 0, Math.PI*2);
-        ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x+22, y+15); ctx.lineTo(x+22, y+45); ctx.stroke();
-        ctx.font = "bold 10px Arial"; ctx.fillStyle = "#000";
-        ctx.fillText(c.trType || "NPN", x+18, y+35);
+        // トランジスタ：半円筒形 (TO-92パッケージ)
+        ctx.fillStyle = '#333';
+        ctx.beginPath(); ctx.arc(x+w/2, y+20, 20, Math.PI, 0); ctx.lineTo(x+w/2+20, y+40); ctx.lineTo(x+w/2-20, y+40); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = "8px Arial"; ctx.fillText(c.trType, x+w/2-10, y+35);
     } else if (c.type === 'BAT') {
-        ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = '#000'; ctx.font = "bold 12px Arial";
-        ctx.fillText(c.val + "V PWR", x+10, y+35);
+        // 9V電池風
+        ctx.fillStyle = '#222'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = '#f1c40f'; ctx.fillRect(x, y, w, 15);
+        ctx.fillStyle = '#fff'; ctx.font = "bold 12px Arial"; ctx.fillText("9V BLOCK", x+10, y+45);
     } else {
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
-        ctx.fillRect(x+10, y+10, w-20, h-20); ctx.strokeRect(x, y, w, h);
+        ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
     }
 
+    // 足（リード線）の描画
     c.pins.forEach(p => {
-        ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 6, 0, Math.PI * 2);
-        ctx.fillStyle = (p.type === 'POS') ? '#e74c3c' : (p.type === 'NEG') ? '#3498db' : '#95a5a6';
-        ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#95a5a6'; ctx.fill(); ctx.stroke();
     });
 }
