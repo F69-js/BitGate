@@ -7,7 +7,7 @@ function addComponent(type) {
         val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 100 : 20), 
         currentI: 0, state: false, isBlown: false,
         isPowered: false,
-        charge: 0 // コンデンサ用：蓄積された電圧
+        charge: 0 
     };
 
     if (type === 'BAT') {
@@ -74,14 +74,12 @@ function drawComponent(ctx, c, isSelected, zoom) {
         }
     } else if (c.type === 'CAP') {
         ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        // 電極を描画
         ctx.beginPath();
         ctx.moveTo(x + 15, y + 5); ctx.lineTo(x + 15, y + 35);
         ctx.moveTo(x + 25, y + 5); ctx.lineTo(x + 25, y + 35);
         ctx.stroke();
-        // 充電率を色で表示
-        const fillLevel = Math.min(c.charge / 9, 1); // 9V基準
-        ctx.fillStyle = `rgba(52, 152, 219, ${fillLevel})`;
+        const fillLevel = Math.min(c.charge / 9, 1);
+        ctx.fillStyle = `rgba(52, 152, 219, ${0.3 + fillLevel * 0.7})`;
         ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
