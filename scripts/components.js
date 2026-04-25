@@ -1,3 +1,57 @@
+const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
+
+function addComponent(type) {
+    const id = Date.now();
+    const obj = { 
+        id, type, x: 200, y: 200, 
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 1000 : type === 'DIO' ? 0.7 : 20), 
+        currentI: 0, state: false, isBlown: false, charge: 0 
+    };
+
+    if (type === 'BAT') {
+        obj.w = 110; obj.h = 65;
+        obj.pins = [{ id: id+'p', type: 'POS', relX: 110, relY: 20, label: '+' }, { id: id+'n', type: 'NEG', relX: 110, relY: 45, label: '-' }];
+    } else if (type === 'LED') {
+        obj.w = 40; obj.h = 40;
+        obj.pins = [{ id: id+'a', type: 'POS', relX: 10, relY: 40, label: 'A' }, { id: id+'k', type: 'NEG', relX: 30, relY: 40, label: 'K' }];
+    } else if (type === 'RES') {
+        obj.w = 90; obj.h = 20;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 10, label: '1' }, { id: id+'2', type: 'NEU', relX: 90, relY: 10, label: '2' }];
+    } else if (type === 'DIO') {
+        obj.w = 60; obj.h = 20;
+        obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
+    } else if (type === 'NOT_IC') {
+        obj.w = 160; obj.h = 60;
+        // DIP14パッケージのピン配置 (1:1A, 2:1Y, ... 7:GND, 14:VCC)
+        obj.pins = [
+            { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
+            { id: id+'p13', type: 'IN',  relX: 35,  relY: 0,  label: '6A' },
+            { id: id+'p12', type: 'OUT', relX: 60,  relY: 0,  label: '6Y' },
+            { id: id+'p11', type: 'IN',  relX: 85,  relY: 0,  label: '5A' },
+            { id: id+'p10', type: 'OUT', relX: 110, relY: 0,  label: '5Y' },
+            { id: id+'p9',  type: 'IN',  relX: 135, relY: 0,  label: '4A' },
+            { id: id+'p8',  type: 'OUT', relX: 160, relY: 0,  label: '4Y' },
+            { id: id+'p1',  type: 'IN',  relX: 10,  relY: 60, label: '1A' },
+            { id: id+'p2',  type: 'OUT', relX: 35,  relY: 60, label: '1Y' },
+            { id: id+'p3',  type: 'IN',  relX: 60,  relY: 60, label: '2A' },
+            { id: id+'p4',  type: 'OUT', relX: 85,  relY: 60, label: '2Y' },
+            { id: id+'p5',  type: 'IN',  relX: 110, relY: 60, label: '3A' },
+            { id: id+'p6',  type: 'OUT', relX: 135, relY: 60, label: '3Y' },
+            { id: id+'p7',  type: 'GND', relX: 160, relY: 60, label: 'GND' }
+        ];
+    } else if (type === 'TR') {
+        obj.w = 50; obj.h = 50; obj.trType = 'NPN';
+        obj.pins = [
+            { id: id+'c', type: 'C', relX: 10, relY: 50, label: 'C' },
+            { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
+            { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
+        ];
+    } else { // Switch類
+        obj.w = 50; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
+    }
+    components.push(obj);
+}
 function drawComponent(ctx, c, isSelected) {
     const {x, y, w, h} = c;
     ctx.strokeStyle = isSelected ? '#3498db' : '#222';
