@@ -2,36 +2,39 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>BitGate CAD v1.1</title>
-    <link rel="stylesheet" href="ui/style.css">
+    <title>BitGate CAD v1.5 - Industrial Edition</title>
+    <link rel="stylesheet" href="./ui/style.css">
 </head>
 <body>
-<header>
-    <div class="logo">Bit<span>Gate</span> <small style="font-size:0.4em; opacity:0.6;">v1.1</small></div>
-    <div class="controls">
-        <button id="startBtn" class="btn-action">RUN SYSTEM</button>
-        <div id="editArea" class="edit-zone">
-            <span id="targetLabel" style="color:#777; font-size:0.7em;">VALUE</span>
-            <input type="number" id="valInput">
-        </div>
-        <button id="delBtn" class="btn-action btn-del" disabled>DELETE</button>
+    <div id="toolbar">
+        <button onclick="addComponent('BAT')">POWER</button>
+        <button onclick="addComponent('RES')">RESISTOR</button>
+        <button onclick="addComponent('LED')">LED</button>
+        <button onclick="addComponent('PSW')">PUSH SW</button>
+        <button onclick="addComponent('SSW')">SLIDE SW</button>
+        <button onclick="addComponent('TR')">TRANSISTOR</button>
+        <div class="separator"></div>
+        <button id="startBtn">RUN SYSTEM</button>
+        <button id="delBtn" disabled>DELETE</button>
+        <span id="statusDisp">SYSTEM READY</span>
     </div>
-    <div id="statusDisp" class="stats">SYSTEM READY</div>
-</header>
-<main>
-    <div id="palette">
-        <div class="part-btn" onclick="addComponent('BAT')">POWER (V)</div>
-        <div class="part-btn" onclick="addComponent('RES')">RESISTOR (Ω)</div>
-        <div class="part-btn" onclick="addComponent('LED')">LED UNIT</div>
-        <div class="part-btn" onclick="addComponent('PSW')">PUSH SW</div>
-        <div class="part-btn" onclick="addComponent('SSW')">SLIDE SW</div>
-    </div>
-    <div id="viewport"><canvas id="cvs" width="2000" height="2000"></canvas></div>
-</main>
 
-<script src="scripts/components.js"></script>
-<script src="scripts/engine.js"></script>
-<script src="scripts/ui.js"></script>
-<script src="scripts/main.js"></script>
+    <div id="canvas-container">
+        <canvas id="cvs" width="1200" height="800"></canvas>
+    </div>
+
+    <div id="editArea">
+        <span id="targetLabel">VALUE</span>: 
+        <input type="number" id="valInput">
+        <select id="typeSelect" style="display:none">
+            <option value="NPN">NPN</option>
+            <option value="PNP">PNP</option>
+        </select>
+    </div>
+
+    <script src="components.js"></script>
+    <script src="engine.js"></script>
+    <script src="ui.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
