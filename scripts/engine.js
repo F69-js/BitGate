@@ -1,5 +1,5 @@
 /**
- * BitGate Engine v1.8.0 - Logical Circuit Optimization
+ * engine.js - Logic IC Simulation
  */
 
 function updateSimulation() {
@@ -7,24 +7,19 @@ function updateSimulation() {
         c.currentI = 0;
         if (c.type === 'BAT') c.isShort = false;
         if (c.type === 'TR') c.isBaseActive = false;
+        if (c.type === 'NOT_IC') { c.isPowered = false; c.inputActive = false; }
     });
     
-    if (!isSimulating) {
-        document.getElementById('statusDisp').innerText = "SYSTEM READY";
-        return;
-    }
+    if (!isSimulating) return;
 
-    // 1. まず全トランジスタのベース状態を確定させる
-    components.filter(c => c.type === 'BAT').forEach(bat => {
-        checkBaseActivation(bat);
-    });
-
-    // 2. メインの電流計算
     components.filter(c => c.type === 'BAT').forEach(bat => {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
-        if (!posP || !negP) return;
 
+        // 1. ベースとICの電源チェック
+        checkLogicalStates(bat, posP, negP);
+
+        // 2. 経路探索
         let allPaths = [];
         function findPaths(currentPinId, visitedPins, currentPathComps) {
             if (currentPinId === negP.id) {
@@ -38,24 +33,26 @@ function updateSimulation() {
                     let canPass = false;
                     const inPin = comp.pins.find(p => p.id === currentPinId);
 
-                    // --- 導通判定の厳格化 ---
                     if (comp.type === 'RES' || comp.type === 'LED') {
-                        canPass = true; 
+                        canPass = true;
                     } else if (comp.type === 'PSW' || comp.type === 'SSW') {
-                        canPass = comp.state === true;
+                        canPass = comp.state;
                     } else if (comp.type === 'TR') {
-                        // コレクタかエミッタに入ってきた場合、ベースがONなら通過可能
-                        if (inPin.type === 'C' || inPin.type === 'E') {
-                            canPass = comp.isBaseActive;
+                        if (inPin.type === 'C' || inPin.type === 'E') canPass = comp.isBaseActive;
+                    } else if (comp.type === 'NOT_IC') {
+                        // ICの内部を電気が通る判定 (OUTピンからNEGに流れるパスがあるか)
+                        if (inPin.type === 'OUT' && comp.isPowered && !comp.inputActive) {
+                            canPass = true; // 電源ONかつ入力OFFの時、内部でVCCとOUTがつながる
                         }
                     }
 
                     if (canPass) {
                         for (let outPin of comp.pins) {
                             if (outPin.id !== currentPinId && !visitedPins.has(outPin.id)) {
-                                // トランジスタの場合、Bピンへの通り抜けは禁止（C-E間のみ）
                                 if (comp.type === 'TR' && outPin.type === 'B') continue;
-                                if (comp.type === 'TR' && inPin.type === 'B') continue;
+                                if (comp.type === 'NOT_IC' && outPin.type !== 'OUT' && inPin.type === 'OUT') continue;
+                                // NOT ICの入力ピン自体は電流を通さない(高インピーダンス)
+                                if (comp.type === 'NOT_IC' && inPin.type === 'IN') continue;
 
                                 visitedPins.add(outPin.id);
                                 currentPathComps.push(comp);
@@ -80,79 +77,60 @@ function updateSimulation() {
 
         findPaths(posP.id, new Set([posP.id]), []);
 
+        // --- 電流計算 (簡略化) ---
         if (allPaths.length > 0) {
             let pathData = allPaths.map(path => {
-                let r = path.reduce((sum, c) => {
-                    let val = Number(c.val) || (c.type === 'LED' ? 20 : 0.1);
-                    if (c.type === 'TR') val = 0.5; // トランジスタ自体の抵抗
-                    return sum + (c.isBlown ? 1e9 : val);
-                }, 0.1);
+                let r = path.reduce((sum, c) => sum + (c.type === 'LED' ? 20 : (c.type === 'RES' ? Number(c.val) : 0.5)), 0.1);
                 return { path, r };
             });
-
             let invTotalR = pathData.reduce((sum, p) => sum + (1 / p.r), 0);
             let totalR = 1 / invTotalR;
-
-            if (totalR < 0.2) {
-                bat.isShort = true;
-                document.getElementById('statusDisp').innerText = "⚠️ SHORT CIRCUIT!";
-                return;
-            }
-
-            const totalSystemAmp = Number(bat.val) / totalR;
+            const systemAmp = Number(bat.val) / totalR;
 
             pathData.forEach(p => {
-                const pathAmp = totalSystemAmp * (totalR / p.r);
-                p.path.forEach(c => {
-                    c.currentI += pathAmp;
-                    if (c.type === 'LED' && !c.isBlown && c.currentI > 0.1) c.isBlown = true;
-                });
+                const pAmp = systemAmp * (totalR / p.r);
+                p.path.forEach(c => c.currentI += pAmp);
             });
-
-            // NOT回路用のバイパス制御（低抵抗パスへの電流集中）
-            components.forEach(c => {
-                if (c.type === 'LED' && c.currentI > 0) {
-                    const hasLowResPath = pathData.some(p => p.r < 2.0 && !p.path.includes(c));
-                    if (hasLowResPath) c.currentI = 0; 
-                }
-            });
-
-            document.getElementById('statusDisp').innerText = "LIVE: " + totalSystemAmp.toFixed(3) + " A";
-        } else {
-            document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
+            document.getElementById('statusDisp').innerText = "LIVE: " + systemAmp.toFixed(3) + " A";
         }
     });
 }
 
-function checkBaseActivation(bat) {
-    const posP = bat.pins.find(p => p.type === 'POS');
-    const negP = bat.pins.find(p => p.type === 'NEG');
+function checkLogicalStates(bat, posP, negP) {
+    components.forEach(comp => {
+        if (comp.type === 'TR' || comp.type === 'NOT_IC') {
+            const checkPin = (comp.type === 'TR') ? comp.pins.find(p => p.type === 'B') : comp.pins.find(p => p.type === 'IN');
+            const vccPin = comp.pins.find(p => p.type === 'VCC');
+            const gndPin = comp.pins.find(p => p.type === 'GND');
 
-    components.filter(c => c.type === 'TR').forEach(tr => {
-        const basePin = tr.pins.find(p => p.type === 'B');
-        let visited = new Set();
-        let queue = [basePin.id];
-        let hasV = false;
-
-        while(queue.length > 0) {
-            let curr = queue.shift();
-            if (curr === posP.id) { hasV = true; break; }
-            if (visited.has(curr)) continue;
-            visited.add(curr);
-
-            wires.forEach(w => {
-                let next = (w.from.pin.id === curr) ? w.to.pin.id : (w.to.pin.id === curr) ? w.from.pin.id : null;
-                if (next) queue.push(next);
-            });
-            components.forEach(comp => {
-                if (comp.pins.some(p => p.id === curr)) {
-                    // ベースに電気を届けるのは、抵抗、スイッチ、または別のTR(ON状態)のみ
-                    if (comp.type === 'RES' || ((comp.type === 'PSW' || comp.type === 'SSW') && comp.state) || (comp.type === 'TR' && comp.isBaseActive)) {
-                        comp.pins.forEach(p => queue.push(p.id));
-                    }
-                }
-            });
+            // 簡易的な通電チェック (VCCとGNDが電池に繋がっているか)
+            if (comp.type === 'NOT_IC') {
+                comp.isPowered = isConnected(vccPin.id, posP.id) && isConnected(gndPin.id, negP.id);
+                comp.inputActive = isConnected(checkPin.id, posP.id);
+            } else {
+                comp.isBaseActive = isConnected(checkPin.id, posP.id);
+            }
         }
-        tr.isBaseActive = (tr.subType === 'NPN') ? hasV : !hasV;
     });
+}
+
+function isConnected(startId, targetId) {
+    let visited = new Set();
+    let queue = [startId];
+    while(queue.length > 0) {
+        let curr = queue.shift();
+        if (curr === targetId) return true;
+        if (visited.has(curr)) continue;
+        visited.add(curr);
+        wires.forEach(w => {
+            let next = (w.from.pin.id === curr) ? w.to.pin.id : (w.to.pin.id === curr) ? w.from.pin.id : null;
+            if (next) queue.push(next);
+        });
+        components.forEach(c => {
+            if (c.pins.some(p => p.id === curr) && (c.type === 'RES' || (c.type.includes('SW') && c.state))) {
+                c.pins.forEach(p => queue.push(p.id));
+            }
+        });
+    }
+    return false;
 }
