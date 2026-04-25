@@ -91,7 +91,12 @@ function updateSimulation() {
             // 3. 電流計算
             if (allPaths.length > 0) {
                 let pathData = allPaths.map(path => {
-                    let r = path.reduce((sum, c) => sum + (c.type === 'LED' ? 20 : (c.type === 'RES' ? Number(c.val) : 0.5)), 0.1);
+                    let r = path.reduce((sum, c) => {
+                        if (c.type === 'LED') return sum + 20;
+                        if (c.type === 'RES') return sum + Number(c.val);
+                        if (c.type === 'NOT_IC') return sum + 100; // IC内部を通る時に100Ωの抵抗を付加
+                        return sum + 0.5; // 配線などの微小抵抗
+                    }, 0.1);
                     return { path, r };
                 });
                 let invTotalR = pathData.reduce((sum, p) => sum + (1 / p.r), 0);
