@@ -1,5 +1,5 @@
 /**
- * BitGate Engine v1.6.0 - Proper Current Distribution
+ * BitGate Engine v1.7.0 - Voltage Drop Logic
  */
 
 function updateSimulation() {
@@ -19,10 +19,8 @@ function updateSimulation() {
         const negP = bat.pins.find(p => p.type === 'NEG');
         if (!posP || !negP) return;
 
-        // 1. ベースの活性化チェック (前回のロジックを維持)
         checkBaseActivation(bat, posP, negP);
 
-        // 2. すべてのユニークな経路を探索
         let allPaths = [];
         function findPaths(currentPinId, visitedPins, currentPathComps) {
             if (currentPinId === negP.id) {
@@ -30,7 +28,6 @@ function updateSimulation() {
                 return;
             }
 
-            // コンポーネント経由の探索
             for (let comp of components) {
                 if (comp === bat) continue;
                 if (comp.pins.some(p => p.id === currentPinId)) {
@@ -39,7 +36,6 @@ function updateSimulation() {
                         canPass = comp.state === true;
                     } else if (comp.type === 'TR') {
                         const currentPin = comp.pins.find(p => p.id === currentPinId);
-                        // C-E間はベースがONの時だけ導通
                         if (currentPin.type === 'C' || currentPin.type === 'E') {
                             canPass = comp.isBaseActive;
                         }
@@ -59,7 +55,6 @@ function updateSimulation() {
                 }
             }
 
-            // 配線経由の探索
             for (let w of wires) {
                 let nextPinId = (w.from.pin.id === currentPinId) ? w.to.pin.id : (w.to.pin.id === currentPinId) ? w.from.pin.id : null;
                 if (nextPinId && !visitedPins.has(nextPinId)) {
@@ -72,19 +67,18 @@ function updateSimulation() {
 
         findPaths(posP.id, new Set([posP.id]), []);
 
-        // 3. 物理法則に基づいた電流計算
         if (allPaths.length > 0) {
+            // 1. 各パスの抵抗計算
             let pathData = allPaths.map(path => {
-                // パスごとの合計抵抗を計算
                 let r = path.reduce((sum, c) => {
                     let val = Number(c.val) || (c.type === 'LED' ? 20 : 0.1);
-                    if (c.type === 'TR') val = 0.1; // ON状態のTRはほぼ抵抗なし
+                    if (c.type === 'TR') val = 0.1; 
                     return sum + (c.isBlown ? 1e9 : val);
-                }, 0.05); // 配線自体の微小抵抗
+                }, 0.05);
                 return { path, r };
             });
 
-            // 全体の合成抵抗: 1/R_total = 1/R1 + 1/R2 + ...
+            // 2. 全体の合成抵抗を算出
             let invTotalR = pathData.reduce((sum, p) => sum + (1 / p.r), 0);
             let totalR = 1 / invTotalR;
 
@@ -94,21 +88,38 @@ function updateSimulation() {
                 return;
             }
 
-            // 各パスに流れる電流: I_path = V / R_path
-            const voltage = Number(bat.val);
-            let totalAmp = 0;
+            // 3. 電池全体の電流を計算
+            const batVoltage = Number(bat.val);
+            const totalSystemAmp = batVoltage / totalR;
 
+            // 4. 各コンポーネントに「自分を通っているパスの合計電流」を割り当てる
+            // ただし、並列部分での電圧降下を考慮し、電流を分配する
             pathData.forEach(p => {
-                const pathAmp = voltage / p.r;
-                totalAmp += pathAmp;
+                // そのパスが全電流のうちどれだけを占めるか (分流の法則)
+                // I_path = I_total * (R_total / R_path)
+                const pathAmp = totalSystemAmp * (totalR / p.r);
+                
                 p.path.forEach(c => {
                     c.currentI += pathAmp;
                     if (c.type === 'LED' && !c.isBlown && c.currentI > 0.1) c.isBlown = true;
                 });
             });
 
+            // NOT回路の救済ロジック：
+            // もし「非常に抵抗の低いパス（トランジスタON）」が並列に存在する場合、
+            // LEDなどの高い抵抗のパスに流れる電流は「見た目上0」に近くする
+            components.forEach(c => {
+                if (c.type === 'LED' && c.currentI > 0) {
+                    // 他のパスに自分より圧倒的に低い抵抗があるかチェック
+                    const hasLowResPath = pathData.some(p => p.r < 1.0 && !p.path.includes(c));
+                    if (hasLowResPath) {
+                        c.currentI *= 0.01; // 電流をカットして消灯させる
+                    }
+                }
+            });
+
             const hasBlown = components.some(c => c.isBlown);
-            document.getElementById('statusDisp').innerText = hasBlown ? "💥 DEVICE BLOWN" : "LIVE: " + totalAmp.toFixed(3) + " A";
+            document.getElementById('statusDisp').innerText = hasBlown ? "💥 DEVICE BLOWN" : "LIVE: " + totalSystemAmp.toFixed(3) + " A";
         } else {
             document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
         }
