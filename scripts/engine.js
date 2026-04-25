@@ -1,5 +1,5 @@
 /**
- * engine.js - Logic IC Simulation
+ * engine.js - Logical IC & Current Flow Fixed
  */
 
 function updateSimulation() {
@@ -16,7 +16,7 @@ function updateSimulation() {
         const posP = bat.pins.find(p => p.type === 'POS');
         const negP = bat.pins.find(p => p.type === 'NEG');
 
-        // 1. ベースとICの電源チェック
+        // 1. 論理状態の事前スキャン
         checkLogicalStates(bat, posP, negP);
 
         // 2. 経路探索
@@ -40,9 +40,10 @@ function updateSimulation() {
                     } else if (comp.type === 'TR') {
                         if (inPin.type === 'C' || inPin.type === 'E') canPass = comp.isBaseActive;
                     } else if (comp.type === 'NOT_IC') {
-                        // ICの内部を電気が通る判定 (OUTピンからNEGに流れるパスがあるか)
-                        if (inPin.type === 'OUT' && comp.isPowered && !comp.inputActive) {
-                            canPass = true; // 電源ONかつ入力OFFの時、内部でVCCとOUTがつながる
+                        // 【修正】電源ONかつ入力OFFの時、VCCとOUTが内部で繋がる
+                        // これにより、電池(+) -> IC(VCC) -> IC(OUT) -> LED -> 電池(-) というパスが成立する
+                        if (comp.isPowered && !comp.inputActive) {
+                            if (inPin.type === 'VCC' || inPin.type === 'OUT') canPass = true;
                         }
                     }
 
@@ -50,9 +51,11 @@ function updateSimulation() {
                         for (let outPin of comp.pins) {
                             if (outPin.id !== currentPinId && !visitedPins.has(outPin.id)) {
                                 if (comp.type === 'TR' && outPin.type === 'B') continue;
-                                if (comp.type === 'NOT_IC' && outPin.type !== 'OUT' && inPin.type === 'OUT') continue;
-                                // NOT ICの入力ピン自体は電流を通さない(高インピーダンス)
-                                if (comp.type === 'NOT_IC' && inPin.type === 'IN') continue;
+                                // NOT_IC内では VCC <-> OUT の間しか電気を通さない
+                                if (comp.type === 'NOT_IC') {
+                                    const valid = (inPin.type === 'VCC' && outPin.type === 'OUT') || (inPin.type === 'OUT' && outPin.type === 'VCC');
+                                    if (!valid) continue;
+                                }
 
                                 visitedPins.add(outPin.id);
                                 currentPathComps.push(comp);
@@ -77,7 +80,7 @@ function updateSimulation() {
 
         findPaths(posP.id, new Set([posP.id]), []);
 
-        // --- 電流計算 (簡略化) ---
+        // 3. 電流計算
         if (allPaths.length > 0) {
             let pathData = allPaths.map(path => {
                 let r = path.reduce((sum, c) => sum + (c.type === 'LED' ? 20 : (c.type === 'RES' ? Number(c.val) : 0.5)), 0.1);
@@ -92,6 +95,8 @@ function updateSimulation() {
                 p.path.forEach(c => c.currentI += pAmp);
             });
             document.getElementById('statusDisp').innerText = "LIVE: " + systemAmp.toFixed(3) + " A";
+        } else {
+            document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
         }
     });
 }
@@ -99,16 +104,15 @@ function updateSimulation() {
 function checkLogicalStates(bat, posP, negP) {
     components.forEach(comp => {
         if (comp.type === 'TR' || comp.type === 'NOT_IC') {
-            const checkPin = (comp.type === 'TR') ? comp.pins.find(p => p.type === 'B') : comp.pins.find(p => p.type === 'IN');
+            const inPin = (comp.type === 'TR') ? comp.pins.find(p => p.type === 'B') : comp.pins.find(p => p.type === 'IN');
             const vccPin = comp.pins.find(p => p.type === 'VCC');
             const gndPin = comp.pins.find(p => p.type === 'GND');
 
-            // 簡易的な通電チェック (VCCとGNDが電池に繋がっているか)
             if (comp.type === 'NOT_IC') {
                 comp.isPowered = isConnected(vccPin.id, posP.id) && isConnected(gndPin.id, negP.id);
-                comp.inputActive = isConnected(checkPin.id, posP.id);
+                comp.inputActive = isConnected(inPin.id, posP.id);
             } else {
-                comp.isBaseActive = isConnected(checkPin.id, posP.id);
+                comp.isBaseActive = isConnected(inPin.id, posP.id);
             }
         }
     });
