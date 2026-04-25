@@ -26,6 +26,11 @@ function distToSegment(p, v, w) {
 }
 
 function initUIListeners() {
+    // typeSelect のイベントリスナーを initUIListeners に追加
+// document.getElementById('typeSelect').addEventListener('change', e => {
+//    if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
+// });
+    
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
     // ズーム機能
@@ -140,8 +145,29 @@ function initUIListeners() {
 function updateUI() {
     const delBtn = document.getElementById('delBtn');
     if (delBtn) delBtn.disabled = !selectedObj;
+    
     const ea = document.getElementById('editArea');
-    if (ea) ea.style.visibility = (selectedObj?.type === 'comp' && (selectedObj.ref.type === 'BAT' || selectedObj.ref.type === 'RES')) ? 'visible' : 'hidden';
+    const typeSelect = document.getElementById('typeSelect'); // HTMLに追加が必要
+    if (!ea) return;
+
+    if (selectedObj?.type === 'comp') {
+        const c = selectedObj.ref;
+        if (c.type === 'BAT' || c.type === 'RES') {
+            ea.style.visibility = 'visible';
+            typeSelect.style.display = 'none';
+            document.getElementById('targetLabel').innerText = c.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
+            document.getElementById('valInput').value = c.val;
+        } else if (c.type === 'TR') {
+            ea.style.visibility = 'visible';
+            typeSelect.style.display = 'block';
+            document.getElementById('targetLabel').innerText = 'TRANSISTOR TYPE';
+            typeSelect.value = c.subType;
+        } else {
+            ea.style.visibility = 'hidden';
+        }
+    } else {
+        ea.style.visibility = 'hidden';
+    }
 }
 
 function deleteSelected() {
