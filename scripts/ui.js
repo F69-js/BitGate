@@ -1,9 +1,9 @@
 /**
- * ui.js - Interaction (Wire bending restored)
+ * ui.js - Global variables for zoom and offset
  */
 
-let zoom = 1.0;
-let offset = { x: 0, y: 0 };
+var zoom = 1.0;
+var offset = { x: 0, y: 0 };
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
@@ -47,13 +47,12 @@ function initUIListeners() {
         if (e.buttons === 4 || (e.buttons === 1 && isSpacePressed)) {
             isPanning = true; return;
         }
-
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
 
-        // 1. ピン判定
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
+                // 当たり判定の距離もズームで割って一定にする
                 if (Math.hypot(pos.x - (c.x + p.relX), pos.y - (c.y + p.relY)) < 15 / zoom) {
                     hitPin = { comp: c, pin: p }; break;
                 }
@@ -71,26 +70,22 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // --- ここが重要：配線引き中の曲げ判定 ---
         if (activeLine) {
-            // 何もない場所をクリックしたので、中間点を追加
-            activeLine.points.push({ x: pos.x, y: pos.y });
-            return;
+            activeLine.points.push({ x: pos.x, y: pos.y }); return;
         }
 
-        // 2. 配線選択
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
             const pts = [pStart, ...w.points, pEnd];
             for (let i = 0; i < pts.length - 1; i++) {
+                // 配線の当たり判定もズームに合わせて補正
                 if (distToSegment(pos, pts[i], pts[i+1]) < 10 / zoom) return true;
             }
             return false;
         });
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
-        // 3. パーツ判定
         const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
@@ -131,68 +126,41 @@ function initUIListeners() {
         isPanning = false;
     });
 
-    window.addEventListener('keydown', e => {
-        if (e.code === 'Space') isSpacePressed = true;
-    });
-    window.addEventListener('keyup', e => {
-        if (e.code === 'Space') isSpacePressed = false;
-    });
+    window.addEventListener('keydown', e => { if (e.code === 'Space') isSpacePressed = true; });
+    window.addEventListener('keyup', e => { if (e.code === 'Space') isSpacePressed = false; });
 
-    // トランジスタタイプ切り替えの検知
-// 追加: 数値入力の変更を即座に反映させる
-    const valInput = document.getElementById('valInput');
-    if (valInput) {
-        valInput.addEventListener('input', e => {
-            if (selectedObj?.type === 'comp') {
-                const c = selectedObj.ref;
-                if (c.type === 'BAT' || c.type === 'RES') {
-                    c.val = Number(e.target.value);
-                }
-            }
-        });
-    }
-
-    // トランジスタタイプ切り替え
-    const ts = document.getElementById('typeSelect');
-    if(ts) ts.addEventListener('change', e => {
+    document.getElementById('typeSelect').addEventListener('change', e => {
         if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
+    });
+
+    document.getElementById('valInput').addEventListener('input', e => {
+        if (selectedObj?.type === 'comp') {
+            const c = selectedObj.ref;
+            if (c.type === 'BAT' || c.type === 'RES') c.val = Number(e.target.value);
+        }
     });
 }
 
 function updateUI() {
     const delBtn = document.getElementById('delBtn');
     if (delBtn) delBtn.disabled = !selectedObj;
-
     const ea = document.getElementById('editArea');
     const ts = document.getElementById('typeSelect');
     const tl = document.getElementById('targetLabel');
     const vi = document.getElementById('valInput');
-
     if (ea) {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
-            ea.style.visibility = 'visible'; // 編集エリアを表示
-
+            ea.style.visibility = 'visible';
             if (c.type === 'BAT' || c.type === 'RES') {
-                // 抵抗・電池の場合：数値入力を出し、セレクトを隠す
-                vi.style.display = 'inline';
-                ts.style.display = 'none';
+                vi.style.display = 'inline'; ts.style.display = 'none';
                 tl.innerText = c.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
                 vi.value = c.val;
             } else if (c.type === 'TR') {
-                // トランジスタの場合：数値を隠し、セレクトを出す
-                vi.style.display = 'none';
-                ts.style.display = 'inline';
-                tl.innerText = 'TYPE';
-                ts.value = c.subType;
-            } else {
-                // スイッチやLEDなどは編集不可なので隠す
-                ea.style.visibility = 'hidden';
-            }
-        } else {
-            // 何も選択していない、または配線選択時は隠す
-            ea.style.visibility = 'hidden';
-        }
+                vi.style.display = 'none'; ts.style.display = 'inline';
+                tl.innerText = 'TYPE'; ts.value = c.subType;
+            } else { ea.style.visibility = 'hidden'; }
+        } else { ea.style.visibility = 'hidden'; }
     }
 }
 
@@ -201,8 +169,6 @@ function deleteSelected() {
     if (selectedObj.type === 'comp') {
         wires = wires.filter(w => w.from.comp !== selectedObj.ref && w.to.comp !== selectedObj.ref);
         components = components.filter(c => c !== selectedObj.ref);
-    } else {
-        wires = wires.filter(w => w !== selectedObj.ref);
-    }
+    } else { wires = wires.filter(w => w !== selectedObj.ref); }
     selectedObj = null; updateUI();
 }
