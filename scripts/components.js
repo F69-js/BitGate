@@ -1,6 +1,6 @@
 /**
  * components.js - Component Definitions & Drawing
- * 修正内容: 0Ω抵抗のカラーコード（黒1本）表示への対応
+ * 修正内容: トランジスタ(TR)の追加と描画ロジック
  */
 
 const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
@@ -13,6 +13,7 @@ function addComponent(type) {
     const obj = { 
         id, type, x: spawnX, y: spawnY, 
         val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), 
+        subType: 'NPN', // トランジスタ用
         currentI: 0, 
         state: false, 
         isBlown: false 
@@ -27,6 +28,14 @@ function addComponent(type) {
     } else if (type === 'RES') {
         obj.w = 80; obj.h = 30;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 15 }, { id: id+'2', type: 'NEU', relX: 80, relY: 15 }];
+    } else if (type === 'TR') {
+        obj.w = 60; obj.h = 60;
+        // B(ベース), C(コレクタ), E(エミッタ)
+        obj.pins = [
+            { id: id+'b', type: 'B', relX: 0, relY: 30 }, 
+            { id: id+'c', type: 'C', relX: 60, relY: 10 },
+            { id: id+'e', type: 'E', relX: 60, relY: 50 }
+        ];
     } else { 
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
@@ -40,40 +49,31 @@ function drawComponent(ctx, c, isSelected) {
     
     if (c.type === 'RES') {
         ctx.fillStyle = '#f3e5ab'; ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeRect(c.x, c.y, c.w, c.h);
-        
-        let bands = [];
-        if (c.val <= 0) {
-            // 0オーム抵抗（ジャンパー）仕様
-            bands = [0]; 
-        } else {
-            const s = Math.floor(c.val).toString();
-            if (c.val < 10) {
-                bands = [0, Math.floor(c.val), 0];
-            } else {
-                bands = [parseInt(s[0]), parseInt(s[1]), s.length - 2];
-            }
-        }
-
-        // 帯の描画（中心に寄せる計算に変更）
+        let bands = (c.val <= 0) ? [0] : [parseInt(c.val.toString()[0]), parseInt(c.val.toString()[1] || 0), Math.max(0, Math.floor(c.val).toString().length - 2)];
         const startX = c.x + (bands.length === 1 ? 36 : 15);
-        bands.forEach((idx, i) => {
-            ctx.fillStyle = COLOR_MAP[idx];
-            ctx.fillRect(startX + (i * 12), c.y, 7, c.h);
-        });
-        
-        // 精度（金）は0Ω以外の時だけ表示
-        if (c.val > 0) {
-            ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(c.x + 55, c.y, 7, c.h);
-        }
+        bands.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(startX + (i * 12), c.y, 7, c.h); });
+        if (c.val > 0) { ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(c.x + 55, c.y, 7, c.h); }
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(c.x+25, c.y+25, 20, 0, Math.PI*2);
-        if (c.isBlown) {
-            ctx.fillStyle = '#333';
-        } else {
-            // 電流に応じて光らせる
-            ctx.fillStyle = `rgba(46, 204, 113, ${Math.min(c.currentI*40, 1)})`;
-        }
+        ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*40, 1)})`;
         ctx.fill(); ctx.stroke();
+    } else if (c.type === 'TR') {
+        // トランジスタの描画
+        ctx.beginPath(); ctx.arc(c.x+35, c.y+30, 20, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(c.x+15, c.y+15); ctx.lineTo(c.x+15, c.y+45); ctx.stroke(); // ベースライン
+        ctx.beginPath(); ctx.moveTo(c.x, c.y+30); ctx.lineTo(c.x+15, c.y+30); ctx.stroke(); // ベース線
+        ctx.beginPath(); ctx.moveTo(c.x+15, c.y+25); ctx.lineTo(c.x+60, c.y+10); ctx.stroke(); // コレクタ
+        ctx.beginPath(); ctx.moveTo(c.x+15, c.y+35); ctx.lineTo(c.x+60, c.y+50); ctx.stroke(); // エミッタ
+        
+        // 矢印 (NPN: 外向き, PNP: 内向き)
+        const isNPN = c.subType === 'NPN';
+        ctx.save();
+        ctx.translate(isNPN ? c.x+45 : c.x+25, isNPN ? c.y+45 : c.y+38);
+        ctx.rotate(isNPN ? 0.5 : -2.5);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-8,-4); ctx.lineTo(-8,4); ctx.closePath();
+        ctx.fillStyle = '#000'; ctx.fill();
+        ctx.restore();
+        ctx.font = "10px Arial"; ctx.fillText(c.subType, c.x+25, c.y+10);
     } else if (c.type === 'BAT') {
         ctx.fillStyle = c.isShort ? '#e74c3c' : '#fff';
         ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeRect(c.x, c.y, c.w, c.h);
@@ -85,8 +85,8 @@ function drawComponent(ctx, c, isSelected) {
     }
 
     c.pins.forEach(p => {
-        ctx.beginPath(); ctx.arc(c.x+p.relX, c.y+p.relY, 7, 0, Math.PI*2);
-        ctx.fillStyle = (p.type === 'POS') ? '#e74c3c' : (p.type === 'NEG') ? '#3498db' : '#95a5a6';
+        ctx.beginPath(); ctx.arc(c.x+p.relX, c.y+p.relY, 7 / (typeof zoom !== 'undefined' ? zoom : 1), 0, Math.PI*2);
+        ctx.fillStyle = (p.type === 'POS' || p.type === 'C') ? '#e74c3c' : (p.type === 'NEG' || p.type === 'E') ? '#3498db' : '#95a5a6';
         ctx.fill(); ctx.stroke();
     });
 }
