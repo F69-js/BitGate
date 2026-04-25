@@ -1,10 +1,17 @@
+/**
+ * components.js - Component Definitions & Drawing
+ * 修正内容: 0Ω抵抗のカラーコード（黒1本）表示への対応
+ */
+
 const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
 
 function addComponent(type) {
     const id = Date.now();
-    // 初期状態: state は false (OFF) を明示
+    const spawnX = 150 + (components.length * 10 % 100);
+    const spawnY = 150 + (components.length * 10 % 100);
+
     const obj = { 
-        id, type, x: 100, y: 100, 
+        id, type, x: spawnX, y: spawnY, 
         val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), 
         currentI: 0, 
         state: false, 
@@ -20,7 +27,7 @@ function addComponent(type) {
     } else if (type === 'RES') {
         obj.w = 80; obj.h = 30;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 15 }, { id: id+'2', type: 'NEU', relX: 80, relY: 15 }];
-    } else { // PSW, SSW
+    } else { 
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
     }
@@ -33,15 +40,37 @@ function drawComponent(ctx, c, isSelected) {
     
     if (c.type === 'RES') {
         ctx.fillStyle = '#f3e5ab'; ctx.fillRect(c.x, c.y, c.w, c.h); ctx.strokeRect(c.x, c.y, c.w, c.h);
-        const s = Math.floor(c.val).toString();
-        let b = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(s[0]), parseInt(s[1]), s.length - 2];
-        b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(c.x + 15 + (i * 12), c.y, 7, c.h); });
-        ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(c.x + 55, c.y, 7, c.h);
+        
+        let bands = [];
+        if (c.val <= 0) {
+            // 0オーム抵抗（ジャンパー）仕様
+            bands = [0]; 
+        } else {
+            const s = Math.floor(c.val).toString();
+            if (c.val < 10) {
+                bands = [0, Math.floor(c.val), 0];
+            } else {
+                bands = [parseInt(s[0]), parseInt(s[1]), s.length - 2];
+            }
+        }
+
+        // 帯の描画（中心に寄せる計算に変更）
+        const startX = c.x + (bands.length === 1 ? 36 : 15);
+        bands.forEach((idx, i) => {
+            ctx.fillStyle = COLOR_MAP[idx];
+            ctx.fillRect(startX + (i * 12), c.y, 7, c.h);
+        });
+        
+        // 精度（金）は0Ω以外の時だけ表示
+        if (c.val > 0) {
+            ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(c.x + 55, c.y, 7, c.h);
+        }
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(c.x+25, c.y+25, 20, 0, Math.PI*2);
         if (c.isBlown) {
             ctx.fillStyle = '#333';
         } else {
+            // 電流に応じて光らせる
             ctx.fillStyle = `rgba(46, 204, 113, ${Math.min(c.currentI*40, 1)})`;
         }
         ctx.fill(); ctx.stroke();
@@ -51,7 +80,6 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillStyle = c.isShort ? '#fff' : '#000';
         ctx.font = "bold 12px Arial"; ctx.fillText(c.isShort ? "!! SHORT !!" : c.val + "V PWR", c.x+10, c.y+35);
     } else {
-        // スイッチの描画（OFF=赤, ON=緑）
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(c.x+10, c.y+10, 30, 20); ctx.strokeRect(c.x, c.y, c.w, c.h);
     }
