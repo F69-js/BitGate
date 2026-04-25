@@ -108,34 +108,34 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
 
         pathData.forEach(p => {
             const pAmp = voltage / p.r;
-            const dt = 0.1; // タイムステップを少し広げて計算を回す
+            // 物理的な感度を大幅にアップ（係数を 0.0001 → 0.000005 へ）
+            const dt = 0.1; 
+            const sensitivity = 0.000005; 
 
             p.path.forEach(c => {
                 c.currentI += pAmp;
                 if (c.type === 'LED' && c.currentI > 0.05) c.isBlown = true;
                 
                 if (c.type === 'CAP') {
-                    const capValue = Math.max(1, Number(c.val));
+                    const capValue = Math.max(0.1, Number(c.val));
                     if (isExternalBat) {
                         c.isBeingCharged = true;
-                        // 充電速度を向上
-                        const dV = (pAmp * dt) / (capValue * 0.0001); 
+                        // 充電速度を μF に応じて劇的に変える
+                        const dV = (pAmp * dt) / (capValue * sensitivity * 10);
                         c.charge = Math.min(voltage, c.charge + dV);
                     }
                 }
             });
 
-            // 放電側（ソースがコンデンサの場合）
             if (!isExternalBat) {
-                const capValue = Math.max(1, Number(source.val));
-                // 放電速度を調整：容量が小さいほどガクッと減るように
-                const dV = (pAmp * dt) / (capValue * 0.0001);
+                const capValue = Math.max(0.1, Number(source.val));
+                // 放電速度：1uFなら一瞬、1000uFならゆっくりになるよう調整
+                const dV = (pAmp * dt) / (capValue * sensitivity);
                 source.charge = Math.max(0, source.charge - dV);
             }
         });
     }
 }
-
 function checkLogicalStates(bat, posP, negP) {
     components.forEach(comp => {
         if (comp.type === 'NOT_IC') {
