@@ -10,29 +10,45 @@ function addComponent(type) {
 
     if (type === 'BAT') {
         obj.w = 110; obj.h = 65;
-        obj.pins = [{ id: id+'p', type: 'POS', relX: 110, relY: 20 }, { id: id+'n', type: 'NEG', relX: 110, relY: 45 }];
+        obj.pins = [{ id: id+'p', type: 'POS', relX: 110, relY: 20, label: '+' }, { id: id+'n', type: 'NEG', relX: 110, relY: 45, label: '-' }];
     } else if (type === 'LED') {
         obj.w = 40; obj.h = 40;
-        obj.pins = [{ id: id+'a', type: 'POS', relX: 10, relY: 40 }, { id: id+'k', type: 'NEG', relX: 30, relY: 40 }];
+        obj.pins = [{ id: id+'a', type: 'POS', relX: 10, relY: 40, label: 'A' }, { id: id+'k', type: 'NEG', relX: 30, relY: 40, label: 'K' }];
     } else if (type === 'RES') {
-        obj.w = 80; obj.h = 20;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 10 }, { id: id+'2', type: 'NEU', relX: 80, relY: 10 }];
-    } else if (type === 'CAP') {
-        obj.w = 30; obj.h = 45;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 5, relY: 45 }, { id: id+'2', type: 'NEU', relX: 25, relY: 45 }];
-    } else if (type === 'DIO') { // ダイオード
+        obj.w = 90; obj.h = 20;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 10, label: '1' }, { id: id+'2', type: 'NEU', relX: 90, relY: 10, label: '2' }];
+    } else if (type === 'DIO') {
         obj.w = 60; obj.h = 20;
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
+    } else if (type === 'NOT_IC') {
+        obj.w = 160; obj.h = 60;
+        // DIP14パッケージのピン配置 (1:1A, 2:1Y, ... 7:GND, 14:VCC)
+        obj.pins = [
+            { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
+            { id: id+'p13', type: 'IN',  relX: 35,  relY: 0,  label: '6A' },
+            { id: id+'p12', type: 'OUT', relX: 60,  relY: 0,  label: '6Y' },
+            { id: id+'p11', type: 'IN',  relX: 85,  relY: 0,  label: '5A' },
+            { id: id+'p10', type: 'OUT', relX: 110, relY: 0,  label: '5Y' },
+            { id: id+'p9',  type: 'IN',  relX: 135, relY: 0,  label: '4A' },
+            { id: id+'p8',  type: 'OUT', relX: 160, relY: 0,  label: '4Y' },
+            { id: id+'p1',  type: 'IN',  relX: 10,  relY: 60, label: '1A' },
+            { id: id+'p2',  type: 'OUT', relX: 35,  relY: 60, label: '1Y' },
+            { id: id+'p3',  type: 'IN',  relX: 60,  relY: 60, label: '2A' },
+            { id: id+'p4',  type: 'OUT', relX: 85,  relY: 60, label: '2Y' },
+            { id: id+'p5',  type: 'IN',  relX: 110, relY: 60, label: '3A' },
+            { id: id+'p6',  type: 'OUT', relX: 135, relY: 60, label: '3Y' },
+            { id: id+'p7',  type: 'GND', relX: 160, relY: 60, label: 'GND' }
+        ];
     } else if (type === 'TR') {
-        obj.type = 'TR'; obj.trType = 'NPN'; obj.w = 50; obj.h = 50;
+        obj.w = 50; obj.h = 50; obj.trType = 'NPN';
         obj.pins = [
             { id: id+'c', type: 'C', relX: 10, relY: 50, label: 'C' },
             { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
             { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
         ];
-    } else {
-        obj.w = 40; obj.h = 40;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 40, relY: 20 }];
+    } else { // Switch類
+        obj.w = 50; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
     }
     components.push(obj);
 }
@@ -43,55 +59,64 @@ function drawComponent(ctx, c, isSelected) {
     ctx.lineWidth = 2;
 
     if (c.type === 'RES') {
-        // 抵抗：実体図風（肌色の円筒）
+        // 抵抗：実体図（4本帯カラーコード）
         ctx.fillStyle = '#e6ccb3'; 
         ctx.beginPath(); ctx.roundRect(x+10, y, w-20, h, 5); ctx.fill(); ctx.stroke();
-        const valStr = Math.floor(c.val).toString();
-        let colors = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(valStr[0]), parseInt(valStr[1]), valStr.length - 2];
-        colors.forEach((idx, i) => {
-            ctx.fillStyle = COLOR_MAP[idx] || '#000';
-            ctx.fillRect(x + 20 + (i * 10), y, 6, h);
-        });
-    } else if (c.type === 'DIO') {
-        // ダイオード：黒いボディに銀色の帯（カソード側）
-        ctx.fillStyle = '#222'; ctx.fillRect(x+10, y+2, w-20, h-4);
-        ctx.fillStyle = '#ccc'; ctx.fillRect(x+w-25, y+2, 8, h-4); // 極性帯
-        ctx.strokeRect(x+10, y+2, w-20, h-4);
-    } else if (c.type === 'CAP') {
-        // 電解コンデンサ：青い円筒
-        ctx.fillStyle = '#1e3799'; ctx.fillRect(x, y, w, h-10);
-        ctx.fillStyle = '#ccc'; ctx.fillRect(x, y+2, 5, h-14); // マイナス側の帯
-        ctx.strokeRect(x, y, w, h-10);
-        const fillH = (c.charge / 9) * (h-10);
-        ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y+(h-10), w, -fillH);
-    } else if (c.type === 'LED') {
-        // LED：砲弾型
-        ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 0, 0, ${0.3 + Math.min(c.currentI*50, 0.7)})`;
-        ctx.beginPath();
-        ctx.arc(x+w/2, y+15, 15, Math.PI, 0); ctx.lineTo(x+w/2+15, y+35); ctx.lineTo(x+w/2-15, y+35); ctx.closePath();
-        ctx.fill(); ctx.stroke();
-        if(!c.isBlown && c.currentI > 0.001) { // 発光エフェクト
-            ctx.shadowBlur = 15; ctx.shadowColor = "red"; ctx.stroke(); ctx.shadowBlur = 0;
+        const v = c.val;
+        let bands = [];
+        if (v < 10) { bands = [0, Math.floor(v), 0]; } 
+        else {
+            const s = v.toString();
+            bands = [parseInt(s[0]), parseInt(s[1]), s.length - 2];
         }
+        bands.forEach((idx, i) => {
+            ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(x + 25 + (i * 12), y, 6, h);
+        });
+        // 誤差（金帯：5%）
+        ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 65, y, 6, h);
+
+    } else if (c.type === 'NOT_IC') {
+        // IC：黒いDIPパッケージ
+        ctx.fillStyle = '#222'; ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#444'; ctx.beginPath(); ctx.arc(x, y+h/2, 8, -Math.PI/2, Math.PI/2); ctx.fill(); // 切り欠き
+        ctx.fillStyle = '#fff'; ctx.font = "bold 10px Arial";
+        ctx.fillText("74HC04 (NOT)", x+40, y+h/2+5);
+
+    } else if (c.type === 'BAT') {
+        // 電池：電圧をラベルに反映
+        ctx.fillStyle = '#222'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = '#f1c40f'; ctx.fillRect(x, y, w, 15);
+        ctx.fillStyle = '#fff'; ctx.font = "bold 12px Arial";
+        ctx.fillText(c.val + "V BLOCK", x+10, y+45);
+
+    } else if (c.type === 'DIO') {
+        ctx.fillStyle = '#222'; ctx.fillRect(x+10, y+2, w-20, h-4);
+        ctx.fillStyle = '#ccc'; ctx.fillRect(x+w-25, y+2, 8, h-4);
+        ctx.strokeRect(x+10, y+2, w-20, h-4);
+    } else if (c.type === 'LED') {
+        ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 50, 50, ${0.4 + Math.min(c.currentI*40, 0.6)})`;
+        ctx.beginPath(); ctx.arc(x+w/2, y+15, 15, Math.PI, 0); ctx.lineTo(x+w/2+15, y+35); ctx.lineTo(x+w/2-15, y+35); ctx.closePath();
+        ctx.fill(); ctx.stroke();
     } else if (c.type === 'TR') {
-        // トランジスタ：半円筒形 (TO-92パッケージ)
         ctx.fillStyle = '#333';
         ctx.beginPath(); ctx.arc(x+w/2, y+20, 20, Math.PI, 0); ctx.lineTo(x+w/2+20, y+40); ctx.lineTo(x+w/2-20, y+40); ctx.closePath();
         ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.font = "8px Arial"; ctx.fillText(c.trType, x+w/2-10, y+35);
-    } else if (c.type === 'BAT') {
-        // 9V電池風
-        ctx.fillStyle = '#222'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = '#f1c40f'; ctx.fillRect(x, y, w, 15);
-        ctx.fillStyle = '#fff'; ctx.font = "bold 12px Arial"; ctx.fillText("9V BLOCK", x+10, y+45);
     } else {
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = '#000'; ctx.font = "9px Arial"; ctx.fillText(c.type, x+5, y+h/2);
     }
 
-    // 足（リード線）の描画
+    // ピンとラベル
     c.pins.forEach(p => {
-        ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#95a5a6'; ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + p.relX, y + p.relY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = (p.type === 'POS' || p.type === 'VCC') ? '#e74c3c' : (p.type === 'NEG' || p.type === 'GND') ? '#3498db' : '#ecf0f1';
+        ctx.fill(); ctx.stroke();
+        
+        // ラベル描画（実体図で見やすく）
+        ctx.fillStyle = "#333"; ctx.font = "bold 10px sans-serif";
+        const lx = x + p.relX + (p.relX <= 0 ? -15 : 8);
+        const ly = y + p.relY + (p.relY <= 0 ? -8 : 12);
+        ctx.fillText(p.label, lx, ly);
     });
 }
