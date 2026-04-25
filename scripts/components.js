@@ -4,7 +4,7 @@ function addComponent(type) {
     const id = Date.now();
     const obj = { 
         id, type, x: 200, y: 200, 
-        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 100 : 20), 
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 2200 : 20), // 初期値を2200μFにアップ
         currentI: 0, state: false, isBlown: false,
         isPowered: false,
         charge: 0 
@@ -79,7 +79,7 @@ function drawComponent(ctx, c, isSelected, zoom) {
         ctx.moveTo(x + 25, y + 5); ctx.lineTo(x + 25, y + 35);
         ctx.stroke();
         const fillLevel = Math.min(c.charge / 9, 1);
-        ctx.fillStyle = `rgba(52, 152, 219, ${0.3 + fillLevel * 0.7})`;
+        ctx.fillStyle = `rgba(52, 152, 219, ${0.4 + fillLevel * 0.6})`;
         ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
