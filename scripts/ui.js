@@ -1,5 +1,5 @@
 /**
- * ui.js - Interaction, Zoom, and Pan (Final Fix)
+ * ui.js - Interaction (Wire bending restored)
  */
 
 let zoom = 1.0;
@@ -7,7 +7,7 @@ let offset = { x: 0, y: 0 };
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
-let isSpacePressed = false; // フラグを関数の外へ移動
+let isSpacePressed = false;
 
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -17,7 +17,6 @@ function getMousePos(e) {
     };
 }
 
-// 配線の当たり判定（これがないとエラーになります）
 function distToSegment(p, v, w) {
     const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
     if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
@@ -26,14 +25,8 @@ function distToSegment(p, v, w) {
 }
 
 function initUIListeners() {
-    // typeSelect のイベントリスナーを initUIListeners に追加
- document.getElementById('typeSelect').addEventListener('change', e => {
-   if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
-});
-    
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-    // ズーム機能
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -51,10 +44,8 @@ function initUIListeners() {
         dragStartPos = { ...pos };
         lastMousePos = { x: e.clientX, y: e.clientY };
 
-        // スペースキーまたは中ボタンでパン
         if (e.buttons === 4 || (e.buttons === 1 && isSpacePressed)) {
-            isPanning = true;
-            return;
+            isPanning = true; return;
         }
 
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
@@ -80,6 +71,13 @@ function initUIListeners() {
             updateUI(); return;
         }
 
+        // --- ここが重要：配線引き中の曲げ判定 ---
+        if (activeLine) {
+            // 何もない場所をクリックしたので、中間点を追加
+            activeLine.points.push({ x: pos.x, y: pos.y });
+            return;
+        }
+
         // 2. 配線選択
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
@@ -90,7 +88,6 @@ function initUIListeners() {
             }
             return false;
         });
-
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
         // 3. パーツ判定
@@ -140,33 +137,41 @@ function initUIListeners() {
     window.addEventListener('keyup', e => {
         if (e.code === 'Space') isSpacePressed = false;
     });
+
+    // トランジスタタイプ切り替えの検知
+    const ts = document.getElementById('typeSelect');
+    if(ts) ts.addEventListener('change', e => {
+        if (selectedObj?.ref.type === 'TR') selectedObj.ref.subType = e.target.value;
+    });
 }
 
 function updateUI() {
     const delBtn = document.getElementById('delBtn');
     if (delBtn) delBtn.disabled = !selectedObj;
-    
     const ea = document.getElementById('editArea');
-    const typeSelect = document.getElementById('typeSelect'); // HTMLに追加が必要
-    if (!ea) return;
-
-    if (selectedObj?.type === 'comp') {
-        const c = selectedObj.ref;
-        if (c.type === 'BAT' || c.type === 'RES') {
-            ea.style.visibility = 'visible';
-            typeSelect.style.display = 'none';
-            document.getElementById('targetLabel').innerText = c.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
-            document.getElementById('valInput').value = c.val;
-        } else if (c.type === 'TR') {
-            ea.style.visibility = 'visible';
-            typeSelect.style.display = 'block';
-            document.getElementById('targetLabel').innerText = 'TRANSISTOR TYPE';
-            typeSelect.value = c.subType;
+    const ts = document.getElementById('typeSelect');
+    const tl = document.getElementById('targetLabel');
+    if (ea) {
+        if (selectedObj?.type === 'comp') {
+            const c = selectedObj.ref;
+            if (c.type === 'BAT' || c.type === 'RES') {
+                ea.style.visibility = 'visible';
+                ts.style.display = 'none';
+                tl.innerText = c.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
+                document.getElementById('valInput').style.display = 'inline';
+                document.getElementById('valInput').value = c.val;
+            } else if (c.type === 'TR') {
+                ea.style.visibility = 'visible';
+                ts.style.display = 'inline';
+                document.getElementById('valInput').style.display = 'none';
+                tl.innerText = 'TYPE';
+                ts.value = c.subType;
+            } else {
+                ea.style.visibility = 'hidden';
+            }
         } else {
             ea.style.visibility = 'hidden';
         }
-    } else {
-        ea.style.visibility = 'hidden';
     }
 }
 
