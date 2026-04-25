@@ -1,39 +1,30 @@
+/**
+ * ui.js - User Interface & Interaction
+ * 修正内容: スイッチの切り替えと移動(ドラッグ)の完全分離
+ */
+
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
 }
+
+// クリック開始時の位置を保持（移動したかどうかの判定用）
+let dragStartPos = { x: 0, y: 0 };
+let hasMoved = false;
 
 function initUIListeners() {
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
     canvas.addEventListener('mousedown', e => {
         const pos = getMousePos(e);
+        dragStartPos = { ...pos };
+        hasMoved = false;
         
         if (e.button === 2) {
             activeLine = null; selectedObj = null; updateUI(); return;
         }
 
-        // 1. パーツ判定 (まず何かに触れたか確認)
-        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
-
-        // 2. スイッチ操作の優先判定 (シミュレーション中、またはスライドスイッチの場合)
-        if (hitC && (hitC.type === 'PSW' || hitC.type === 'SSW')) {
-            // スライドスイッチはいつでも、プッシュスイッチはシミュレーション中のみ反応
-            if (hitC.type === 'SSW' || (hitC.type === 'PSW' && isSimulating)) {
-                if (hitC.type === 'SSW') {
-                    hitC.state = !hitC.state; // トグル
-                } else {
-                    hitC.state = true; // PushはMouseDownでON
-                }
-                selectedObj = { type: 'comp', ref: hitC };
-                updateUI();
-                
-                // 【重要】スイッチを操作したときはドラッグさせない
-                if (isSimulating) return; 
-            }
-        }
-
-        // 3. ピン判定（配線開始/終了）
+        // 1. ピン判定（配線開始/終了）を最優先
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
@@ -58,12 +49,12 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 4. 配線中の曲げ
+        // 2. 配線中の曲げ
         if (activeLine) {
             activeLine.points.push({ x: pos.x, y: pos.y }); return;
         }
 
-        // 5. 配線選択
+        // 3. 配線選択
         const hitWire = wires.find(w => {
             const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
             const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
@@ -79,18 +70,37 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 6. パーツドラッグ（スイッチの操作以外、または停止中）
+        // 4. パーツ選択・ドラッグ開始
+        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC }; 
             draggingObj = hitC;
             dragOffset = { x: pos.x - hitC.x, y: pos.y - hitC.y };
+            
+            // Push Switchの場合のみ、押した瞬間にON（シミュレーション中のみ）
+            if (hitC.type === 'PSW' && isSimulating) {
+                hitC.state = true;
+            }
         } else {
             selectedObj = null;
         }
         updateUI();
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
+        const pos = getMousePos(e);
+        
+        // 移動距離が小さければ「クリック（操作）」とみなす
+        const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
+        
+        if (moveDist < 5 && selectedObj?.type === 'comp') {
+            const c = selectedObj.ref;
+            // スライドスイッチの切り替え
+            if (c.type === 'SSW') {
+                c.state = !c.state;
+            }
+        }
+
         // Push Switch は指を離すとOFF
         components.forEach(c => { if (c.type === 'PSW') c.state = false; });
         draggingObj = null;
@@ -98,7 +108,10 @@ function initUIListeners() {
 
     window.addEventListener('mousemove', e => {
         mouse = getMousePos(e);
-        if (draggingObj) { draggingObj.x = mouse.x - dragOffset.x; draggingObj.y = mouse.y - dragOffset.y; }
+        if (draggingObj) { 
+            draggingObj.x = mouse.x - dragOffset.x; 
+            draggingObj.y = mouse.y - dragOffset.y; 
+        }
     });
 
     window.addEventListener('keydown', e => {
@@ -118,11 +131,17 @@ function deleteSelected() {
 }
 
 function updateUI() {
-    document.getElementById('delBtn').disabled = !selectedObj;
+    const delBtn = document.getElementById('delBtn');
+    if (delBtn) delBtn.disabled = !selectedObj;
+    
     const ea = document.getElementById('editArea');
+    if (!ea) return;
+
     if (selectedObj?.type === 'comp' && (selectedObj.ref.type === 'BAT' || selectedObj.ref.type === 'RES')) {
         ea.style.visibility = 'visible';
         document.getElementById('targetLabel').innerText = selectedObj.ref.type === 'BAT' ? 'POWER (V)' : 'RES (Ω)';
         document.getElementById('valInput').value = selectedObj.ref.val;
-    } else ea.style.visibility = 'hidden';
+    } else {
+        ea.style.visibility = 'hidden';
+    }
 }
