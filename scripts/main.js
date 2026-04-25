@@ -1,5 +1,5 @@
 /**
- * main.js - Drawing loop with scale compensation
+ * main.js - Drawing Loop with Zoom Correction
  */
 
 const canvas = document.getElementById('cvs');
@@ -46,18 +46,20 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
+    // ここで座標系全体をズーム
     ctx.translate(offset.x, offset.y);
     ctx.scale(zoom, zoom);
 
     drawGrid();
 
-    // 配線描画 (太さを補正)
+    // 配線描画
     wires.forEach(w => {
         const p1 = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
         const p2 = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
         const pts = [p1, ...w.points, p2];
+        
         ctx.beginPath(); 
-        // ズームによらず見た目3px、選択時は5pxにする
+        // 見た目の太さを一定にする
         ctx.lineWidth = (selectedObj?.ref === w) ? 5 / zoom : 3 / zoom;
         ctx.strokeStyle = (selectedObj?.ref === w) ? '#2ecc71' : '#333';
         ctx.lineJoin = 'round';
@@ -69,11 +71,13 @@ function draw() {
 
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
+    // 配線作成中のプレビュー
     if (activeLine) {
         const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
         const pts = [pStart, ...activeLine.points, mouse];
         ctx.strokeStyle = '#2ecc71'; 
         ctx.lineWidth = 2 / zoom;
+        // 点線の間隔も補正
         ctx.setLineDash([5/zoom, 5/zoom]); 
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -92,6 +96,7 @@ function drawGrid() {
     const top = -offset.y / zoom;
     const right = (canvas.width - offset.x) / zoom;
     const bottom = (canvas.height - offset.y) / zoom;
+    
     ctx.strokeStyle = '#f1f1f1'; 
     ctx.lineWidth = 1 / zoom;
     ctx.beginPath();
