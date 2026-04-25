@@ -3,20 +3,12 @@ const ctx = canvas.getContext('2d');
 let isSimulating = false, components = [], wires = [], activeLine = null;
 let draggingObj = null, draggingPoint = null, dragOffset = {x:0, y:0}, selectedObj = null, mouse = {x:0, y:0};
 
-// マウスの押し下げ状態を保持するフラグ
+// マウスの状態を管理
 let isMouseDown = false;
 
 function draw() {
-    // --- 1. 入力の同期更新 ---
-    if (isSimulating) {
-        components.forEach(c => {
-            if (c.type === 'PSW') {
-                // シミュレーション中、マウスが重なっていて押されている間だけON
-                const isHover = (mouse.x > c.x && mouse.x < c.x + c.w && mouse.y > c.y && mouse.y < c.y + c.h);
-                c.state = (isHover && isMouseDown);
-            }
-        });
-    }
+    // --- 1. 入力の同期更新（削除または簡略化） ---
+    // ここで c.state を直接書き換えるのをやめます。ui.js に任せます。
 
     // --- 2. 物理演算と描画 ---
     updateSimulation();
@@ -58,6 +50,7 @@ function draw() {
     requestAnimationFrame(draw);
 }
 
+// UIイベントの初期化
 initUIListeners();
 
 document.getElementById('startBtn').addEventListener('click', e => {
