@@ -12,6 +12,15 @@ function getMousePos(e) {
 let dragStartPos = { x: 0, y: 0 };
 let hasMoved = false;
 
+// 配線の当たり判定用：点と線分の距離を計算
+function distToSegment(p, v, w) {
+    const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+    if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+}
+
 function initUIListeners() {
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
