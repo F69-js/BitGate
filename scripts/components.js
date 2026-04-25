@@ -42,7 +42,6 @@ function addComponent(type) {
         ];
         for(let i=1; i<=6; i++) obj['inputActive'+i] = false;
     } else if (type === 'NPN' || type === 'PNP' || type === 'TR') {
-        // トランジスタはここ！必ず trType をセットする
         obj.type = 'TR';
         obj.trType = (type === 'TR') ? 'NPN' : type; 
         obj.w = 60; obj.h = 60;
@@ -52,7 +51,6 @@ function addComponent(type) {
             { id: id+'e', type: 'E', relX: 30, relY: 60, label: 'E' }
         ];
     } else {
-        // スイッチなど
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 50, relY: 20 }];
     }
@@ -66,14 +64,10 @@ function drawComponent(ctx, c, isSelected) {
 
     if (c.type === 'RES') {
         ctx.fillStyle = '#f3e5ab'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        if (Number(c.val) <= 0) {
-            ctx.fillStyle = COLOR_MAP[0]; ctx.fillRect(x + w/2 - 4, y, 8, h);
-        } else {
-            const s = Math.floor(c.val).toString();
-            let b = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(s[0]), parseInt(s[1]), s.length - 2];
-            b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(x + 15 + (i * 12), y, 7, h); });
-            ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 55, y, 7, h);
-        }
+        const s = Math.floor(c.val).toString();
+        let b = (c.val < 10) ? [0, Math.floor(c.val), 0] : [parseInt(s[0]), parseInt(s[1]), s.length - 2];
+        b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(x + 15 + (i * 12), y, 7, h); });
+        ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 55, y, 7, h);
     } else if (c.type === 'CAP') {
         ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
         ctx.beginPath();
@@ -89,31 +83,17 @@ function drawComponent(ctx, c, isSelected) {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*50, 1)})`;
         ctx.fill(); ctx.stroke();
-    } else if (c.type === 'NOT_IC') {
-        ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = c.isPowered ? '#2ecc71' : '#fff'; 
-        ctx.font = "bold 12px Arial";
-        ctx.fillText(c.isPowered ? "74HC14 (LIVE)" : "74HC14", x+15, y+45);
+    } else if (c.type === 'TR') {
+        ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 25, 0, Math.PI*2);
+        ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+20, y+15); ctx.lineTo(x+20, y+45); ctx.stroke();
+        ctx.font = "bold 10px Arial"; ctx.fillStyle = "#000";
+        ctx.fillText(c.trType || "NPN", x+w/2-12, y+h/2+4);
     } else if (c.type === 'BAT') {
         ctx.fillStyle = c.isShort ? '#e74c3c' : '#fff';
         ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
         ctx.fillStyle = c.isShort ? '#fff' : '#000';
         ctx.font = "bold 12px Arial"; ctx.fillText(c.val + "V PWR", x+10, y+35);
-    } else if (c.type === 'TR') {
-        // トランジスタ描画（3本足対応）
-        const cx = x + w/2;
-        const cy = y + h/2;
-        ctx.beginPath(); ctx.arc(cx, cy, 25, 0, Math.PI*2);
-        ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
-        
-        // 内部の回路記号的な線
-        ctx.beginPath();
-        ctx.moveTo(cx - 10, cy - 15); ctx.lineTo(cx - 10, cy + 15); // ベースの縦棒
-        ctx.stroke();
-
-        ctx.font = "bold 10px Arial"; ctx.fillStyle = "#000";
-        // ここで trType を参照（undefined を回避）
-        ctx.fillText(c.trType || "NPN", cx - 12, cy + 4);
     } else {
         ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(x+10, y+10, w-20, h-20); ctx.strokeRect(x, y, w, h);
