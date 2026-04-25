@@ -8,26 +8,40 @@ function updateSimulation() {
     
     if (!isSimulating) return;
 
-    components.filter(c => c.type === 'BAT').forEach(bat => {
-        const posP = bat.pins.find(p => p.type === 'POS');
-        const negP = bat.pins.find(p => p.type === 'NEG');
-        if (!posP || !negP) return;
+    // 電源ソース（電池 + 蓄電済みコンデンサ）をリスト化
+    const powerSources = components.filter(c => c.type === 'BAT');
+    const capacitors = components.filter(c => c.type === 'CAP');
 
-        checkLogicalStates(bat, posP, negP);
+    // 全ての経路を計算するための統合処理
+    const activeSources = [...powerSources];
+    // 電池がなくても電荷があるコンデンサはソースとして扱う
+    capacitors.forEach(cap => { if(cap.charge > 0.1) activeSources.push(cap); });
+
+    activeSources.forEach(source => {
+        const isBat = source.type === 'BAT';
+        const startPin = isBat ? source.pins.find(p => p.type === 'POS') : source.pins[0];
+        const endPin = isBat ? source.pins.find(p => p.type === 'NEG') : source.pins[1];
+        const voltage = isBat ? Number(source.val) : source.charge;
+
+        // 論理状態の更新
+        if(isBat) {
+            const posP = source.pins.find(p => p.type === 'POS');
+            const negP = source.pins.find(p => p.type === 'NEG');
+            checkLogicalStates(source, posP, negP);
+        }
 
         let allPaths = [];
         const findPaths = (currentPinId, visitedPins, currentPathComps) => {
-            if (currentPinId === negP.id) {
+            if (currentPinId === endPin.id) {
                 allPaths.push([...currentPathComps]);
                 return;
             }
 
             for (let comp of components) {
-                if (comp === bat) continue;
+                if (comp === source && isBat) continue; 
                 const inPin = comp.pins.find(p => p.id === currentPinId);
                 if (inPin) {
                     let canPass = false;
-                    // コンデンサは電圧差がある間だけ電気を通す(簡易モデル)
                     if (comp.type === 'RES' || comp.type === 'LED' || comp.type === 'CAP') canPass = true;
                     else if (comp.type === 'PSW' || comp.type === 'SSW') canPass = comp.state;
                     else if (comp.type === 'TR' && (inPin.type === 'C' || inPin.type === 'E')) canPass = comp.isBaseActive;
@@ -37,9 +51,7 @@ function updateSimulation() {
                             if (label && label.startsWith('O')) {
                                 const gNum = label.substring(1);
                                 if (!comp['inputActive' + gNum]) canPass = true;
-                            } else if (inPin.type === 'VCC') {
-                                canPass = true;
-                            }
+                            } else if (inPin.type === 'VCC') canPass = true;
                         }
                     }
 
@@ -54,7 +66,6 @@ function updateSimulation() {
                                     if (comp['inputActive' + gNum]) continue; 
                                 }
                                 if (comp.type === 'TR' && outPin.type === 'B') continue;
-
                                 visitedPins.add(outPin.id);
                                 currentPathComps.push(comp);
                                 findPaths(outPin.id, visitedPins, currentPathComps);
@@ -76,7 +87,7 @@ function updateSimulation() {
             }
         };
 
-        findPaths(posP.id, new Set([posP.id]), []);
+        findPaths(startPin.id, new Set([startPin.id]), []);
 
         if (allPaths.length > 0) {
             let pathData = allPaths.map(path => {
@@ -84,43 +95,50 @@ function updateSimulation() {
                     if (c.type === 'LED') return sum + 20;
                     if (c.type === 'RES') return sum + Number(c.val);
                     if (c.type === 'NOT_IC') return sum + 200;
-                    if (c.type === 'CAP') return sum + 10; // 内部抵抗
+                    if (c.type === 'CAP') return sum + 50; 
                     return sum + 0.5;
                 }, 0.1);
-                
-                // コンデンサによる電圧降下を考慮
-                let vDrop = path.reduce((sum, c) => sum + (c.type === 'CAP' ? c.charge : 0), 0);
-                return { path, r, vEff: Math.max(0, Number(bat.val) - vDrop) };
+                return { path, r };
             });
 
             pathData.forEach(p => {
-                const pAmp = p.vEff / p.r;
+                const pAmp = voltage / p.r;
                 p.path.forEach(c => {
                     c.currentI += pAmp;
                     if (c.type === 'LED' && c.currentI > 0.05) c.isBlown = true;
                     
-                    // コンデンサの充電処理 (Q = CV, I = dQ/dt)
+                    const dt = 0.05; 
                     if (c.type === 'CAP') {
-                        const dt = 0.1; // シミュレーションステップ
                         const capFarad = c.val * 1e-6;
-                        const dV = (pAmp * dt) / capFarad;
-                        c.charge = Math.min(Number(bat.val), c.charge + dV);
+                        if (isBat) {
+                            // 電池からの充電
+                            const dV = (pAmp * dt) / capFarad;
+                            c.charge = Math.min(voltage, c.charge + dV);
+                        } else if (c !== source) {
+                            // 他のコンデンサへの移動（あれば）
+                            const dV = (pAmp * dt) / capFarad;
+                            c.charge = Math.min(9, c.charge + dV);
+                        }
                     }
                 });
-            });
-            
-            const totalAmp = pathData.reduce((sum, p) => sum + (p.vEff / p.r), 0);
-            document.getElementById('statusDisp').innerText = "LIVE: " + totalAmp.toFixed(3) + " A";
-        } else {
-            // 放電ロジック (回路が切れている場合、自己放電)
-            components.forEach(c => {
-                if (c.type === 'CAP' && c.charge > 0) {
-                    c.charge *= 0.95; // 簡易的な放電
+
+                // ソースがコンデンサの場合の放電消費
+                if (!isBat) {
+                    const capFarad = source.val * 1e-6;
+                    const dV = (pAmp * 0.05) / capFarad;
+                    source.charge = Math.max(0, source.charge - dV);
                 }
             });
-            document.getElementById('statusDisp').innerText = "CIRCUIT OPEN";
         }
     });
+
+    // どの経路にも含まれないコンデンサの微量な自然放電
+    capacitors.forEach(c => {
+        if (c.currentI === 0) c.charge *= 0.995; 
+    });
+
+    const totalDisplayAmp = components.reduce((s, c) => s + (c.type === 'BAT' ? c.currentI : 0), 0);
+    document.getElementById('statusDisp').innerText = "SYSTEM: " + totalDisplayAmp.toFixed(3) + " A";
 }
 
 function checkLogicalStates(bat, posP, negP) {
@@ -132,10 +150,9 @@ function checkLogicalStates(bat, posP, negP) {
             
             for (let i = 1; i <= 6; i++) {
                 const inP = comp.pins.find(p => p.label === 'I' + i);
-                // コンデンサの電圧が閾値(例えば電池の半分)を超えていればHighとみなす
                 const isHigh = isConnected(inP.id, posP.id);
                 const capVoltage = getConnectedCapVoltage(inP.id);
-                comp['inputActive' + i] = isHigh || (capVoltage > bat.val * 0.5);
+                comp['inputActive' + i] = isHigh || (capVoltage > Number(bat.val) * 0.5);
             }
         } else if (comp.type === 'TR') {
             const bP = comp.pins.find(p => p.type === 'B');
@@ -150,7 +167,6 @@ function getConnectedCapVoltage(startId) {
         let curr = queue.shift();
         if (visited.has(curr)) continue;
         visited.add(curr);
-        
         for (let c of components) {
             if (c.pins.some(p => p.id === curr)) {
                 if (c.type === 'CAP') maxV = Math.max(maxV, c.charge);
