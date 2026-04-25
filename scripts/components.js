@@ -4,9 +4,10 @@ function addComponent(type) {
     const id = Date.now();
     const obj = { 
         id, type, x: 200, y: 200, 
-        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : 20), 
+        val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 100 : 20), 
         currentI: 0, state: false, isBlown: false,
-        isPowered: false // 通電フラグ
+        isPowered: false,
+        charge: 0 // コンデンサ用：蓄積された電圧
     };
 
     if (type === 'BAT') {
@@ -18,6 +19,9 @@ function addComponent(type) {
     } else if (type === 'RES') {
         obj.w = 80; obj.h = 30;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 15 }, { id: id+'2', type: 'NEU', relX: 80, relY: 15 }];
+    } else if (type === 'CAP') {
+        obj.w = 40; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20 }, { id: id+'2', type: 'NEU', relX: 40, relY: 20 }];
     } else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 80;
         obj.pins = [
@@ -36,7 +40,6 @@ function addComponent(type) {
             { id: id+'in6',  type: 'IN',  relX: 110, relY: 0,  label: 'I6' },
             { id: id+'out6', type: 'OUT', relX: 130, relY: 0,  label: 'O6' }
         ];
-        // 6回路それぞれの入力状態を初期化
         for(let i=1; i<=6; i++) obj['inputActive'+i] = false;
     } else if (type === 'NPN' || type === 'PNP') {
         obj.type = 'TR';
@@ -69,13 +72,23 @@ function drawComponent(ctx, c, isSelected, zoom) {
             b.forEach((idx, i) => { ctx.fillStyle = COLOR_MAP[idx]; ctx.fillRect(x + 15 + (i * 12), y, 7, h); });
             ctx.fillStyle = COLOR_MAP[10]; ctx.fillRect(x + 55, y, 7, h);
         }
+    } else if (c.type === 'CAP') {
+        ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+        // 電極を描画
+        ctx.beginPath();
+        ctx.moveTo(x + 15, y + 5); ctx.lineTo(x + 15, y + 35);
+        ctx.moveTo(x + 25, y + 5); ctx.lineTo(x + 25, y + 35);
+        ctx.stroke();
+        // 充電率を色で表示
+        const fillLevel = Math.min(c.charge / 9, 1); // 9V基準
+        ctx.fillStyle = `rgba(52, 152, 219, ${fillLevel})`;
+        ctx.fillRect(x + 16, y + 35, 8, -30 * fillLevel);
     } else if (c.type === 'LED') {
         ctx.beginPath(); ctx.arc(x+w/2, y+h/2, 20, 0, Math.PI*2);
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(46, 204, 113, ${Math.min(c.currentI*50, 1)})`;
         ctx.fill(); ctx.stroke();
     } else if (c.type === 'NOT_IC') {
         ctx.fillStyle = '#2c3e50'; ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-        // 通電表示
         ctx.fillStyle = c.isPowered ? '#2ecc71' : '#fff'; 
         ctx.font = "bold 12px Arial";
         ctx.fillText(c.isPowered ? "74HC14 (LIVE)" : "74HC14", x+15, y+45);
