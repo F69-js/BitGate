@@ -58,6 +58,9 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
                 else if (comp.type === 'CAP') canPass = true;
                 else if (comp.type === 'PSW' || comp.type === 'SSW') canPass = comp.state;
                 else if (comp.type === 'TR' && (inPin.type === 'C' || inPin.type === 'E')) canPass = comp.isBaseActive;
+                else if (comp.type === 'DIO') {
+                    if (inPin.type === 'POS') canPass = true; // A端子なら通過OK
+                }
 
                 if (canPass) {
                     for (let outPin of comp.pins) {
@@ -89,6 +92,7 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
             if (c.type === 'RES') return sum + Number(c.val);
             if (c.type === 'TR') return sum + 1000; // TRのベース抵抗をシミュレート
             if (c.type === 'LED') return sum + 20;
+            if (c.type === 'DIO') return sum + 10; // 順方向抵抗
             return sum + 1;
         }, 1);
         
