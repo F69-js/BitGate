@@ -132,30 +132,56 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillRect(dx, dy + (h - 10), w, -fillH);
     } 
 else if (c.type === 'LED') {
-    const baseColor = c.color || '#ff0000'; // デフォルトは赤
-    // 発光の強さを電流 (currentI) で計算
-    const brightness = 0.4 + Math.min(c.currentI * 40, 0.6);
-    
-    // ボディの色（非点灯時も考慮）
-    ctx.fillStyle = c.isBlown ? '#333' : baseColor;
-    ctx.globalAlpha = brightness; // 透明度で輝度を表現
-    
-    ctx.beginPath();
-    ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
-    ctx.lineTo(dx + w / 2 + 15, dy + 35);
-    ctx.lineTo(dx + w / 2 - 15, dy + 35);
-    ctx.closePath();
-    ctx.fill();
-    ctx.globalAlpha = 1.0; // リセット
-    ctx.stroke();
+        const baseColor = c.color || '#ff3232'; // 指定色（デフォルトは赤）
+        
+        // 電流に基づいた輝度計算（0.2〜0.8の範囲で変化）
+        const brightness = 0.2 + Math.min(c.currentI * 50, 0.6);
+        
+        ctx.save();
+        
+        // 1. LEDの「足」の部分（台座）
+        ctx.fillStyle = '#bbb';
+        ctx.fillRect(dx + w / 2 - 15, dy + 30, 30, 5);
 
-    if (!c.isBlown && c.currentI > 0.001) {
-        ctx.shadowBlur = 15; 
-        ctx.shadowColor = baseColor; 
-        ctx.stroke(); 
-        ctx.shadowBlur = 0;
+        // 2. LEDのボディ（レンズ部分）
+        // 非点灯時は少し暗い色、点灯時は鮮やかな色にする
+        if (c.isBlown) {
+            ctx.fillStyle = '#333'; // 焼損時は黒
+        } else {
+            // 点灯感を出すために、ベースカラーの不透明度を電流で調整
+            ctx.fillStyle = baseColor;
+            ctx.globalAlpha = brightness;
+        }
+        
+        ctx.beginPath();
+        ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
+        ctx.lineTo(dx + w / 2 + 15, dy + 35);
+        ctx.lineTo(dx + w / 2 - 15, dy + 35);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 3. 視認性のための「縁取り」
+        // 白LEDでも見えるように、常に濃い目のグレーでストロークを描く
+        ctx.globalAlpha = 1.0; 
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 4. 発光エフェクト（光彩）
+        if (!c.isBlown && c.currentI > 0.001) {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = baseColor;
+            // 白の場合は光彩を少し青白くすると「神々しさ」が増す
+            if (baseColor === '#ffffff') ctx.shadowColor = '#e0f7fa';
+            
+            ctx.strokeStyle = baseColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        
+        ctx.restore();
     }
-}
     else if (c.type === 'TR') {
         ctx.fillStyle = '#333';
         ctx.beginPath();
