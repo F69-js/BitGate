@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <base href="https://f69-js.github.io/BitGate/">
     <link rel="canonical" href="https://f69-js.github.io/BitGate/">
-    <title>BitGate CAD v1.6</title>
+    <title>BitGate CAD v1.7</title>
     <link rel="stylesheet" href="ui/style.css">
     <link rel="icon" href="static/favicon.png" type="image/x-icon">
     
@@ -27,15 +27,20 @@
             <a href="https://github.com/f69-js/BitGate" target="_blank">
                 <img src="static/logo.png" alt="BitGate Logo" style="height:28px; image-rendering:pixelated;">
             </a>
-            <small style="font-size:0.4em; opacity:0.6;">v1.6</small>
+            <small style="font-size:0.4em; opacity:0.6;">v1.7</small>
          </div>
         
         <div class="controls">
+            <div class="file-ops" style="border-right: 1px solid #444; padding-right: 10px; margin-right: 10px;">
+                <button id="saveBtn" class="btn-action" onclick="saveCircuit()" style="background: #2c3e50;">SAVE</button>
+                <button id="loadBtn" class="btn-action" onclick="loadCircuit()" style="background: #2c3e50;">LOAD</button>
+            </div>
+
             <div id="editArea" class="edit-zone">
                 <span id="targetLabel" style="font-size: 0.7em; color: #888;">VALUE</span>
                 <input type="number" id="valInput" step="0.1">
                 <select id="typeSelect" style="display: none; background: #222; color: #2ecc71; border: none; font-family: monospace;">
-     </select>
+                </select>
             </div>
 
             <button id="startBtn" class="btn-action">RUN SYSTEM</button>
@@ -64,6 +69,8 @@
 
     <script src="scripts/components.js"></script>
     <script src="scripts/engine.js"></script>
+    <script src="scripts/save.js"></script>
+    <script src="scripts/load.js"></script>
     <script src="scripts/ui.js"></script>
     <script src="scripts/main.js"></script>
 </body>
