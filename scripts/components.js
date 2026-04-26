@@ -22,7 +22,6 @@ function addComponent(type) {
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
     } else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
-        // DIP14パッケージのピン配置 (1:1A, 2:1Y, ... 7:GND, 14:VCC)
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
             { id: id+'p13', type: 'IN',  relX: 35,  relY: 0,  label: '6A' },
@@ -46,19 +45,22 @@ function addComponent(type) {
             { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
             { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
         ];
-    } else { // Switch類
+    } else if (type === 'CAP') {
+        obj.w = 30; obj.h = 45;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 15, relY: 0, label: '+' }, { id: id+'2', type: 'NEU', relX: 15, relY: 45, label: '-' }];
+    } else if (type === 'PSW' || type === 'SSW') {
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
     }
     components.push(obj);
 }
+
 function drawComponent(ctx, c, isSelected) {
     const { x, y, w, h } = c;
     ctx.strokeStyle = isSelected ? '#3498db' : '#222';
     ctx.lineWidth = 2;
 
     if (c.type === 'RES') {
-        // 抵抗：実体図（4本帯カラーコード）
         ctx.fillStyle = '#e6ccb3';
         ctx.beginPath();
         ctx.roundRect(x + 10, y, w - 20, h, 5);
@@ -77,12 +79,11 @@ function drawComponent(ctx, c, isSelected) {
                 ctx.fillStyle = COLOR_MAP[idx] || '#000';
                 ctx.fillRect(x + 25 + (i * 12), y, 6, h);
             });
-            ctx.fillStyle = COLOR_MAP[10]; // 金帯
+            ctx.fillStyle = COLOR_MAP[10];
             ctx.fillRect(x + 65, y, 6, h);
         }
     } 
     else if (c.type === 'DIO') {
-        // ダイオード：黒ボディ＋銀帯
         ctx.fillStyle = '#222';
         ctx.fillRect(x + 10, y + 2, w - 20, h - 4);
         ctx.fillStyle = '#ccc';
@@ -90,19 +91,16 @@ function drawComponent(ctx, c, isSelected) {
         ctx.strokeRect(x + 10, y + 2, w - 20, h - 4);
     } 
     else if (c.type === 'CAP') {
-        // コンデンサ：青い円筒
         ctx.fillStyle = '#1e3799';
         ctx.fillRect(x, y, w, h - 10);
-        ctx.fillStyle = '#ccc'; // マイナス帯
+        ctx.fillStyle = '#ccc';
         ctx.fillRect(x, y + 2, 5, h - 14);
         ctx.strokeRect(x, y, w, h - 10);
-        // 充電量インジケータ（おまけ）
         const fillH = Math.min((c.charge / 9), 1) * (h - 10);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.fillRect(x, y + (h - 10), w, -fillH);
     } 
     else if (c.type === 'LED') {
-        // LED：砲弾型
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 50, 50, ${0.4 + Math.min(c.currentI * 40, 0.6)})`;
         ctx.beginPath();
         ctx.arc(x + w / 2, y + 15, 15, Math.PI, 0);
@@ -116,7 +114,6 @@ function drawComponent(ctx, c, isSelected) {
         }
     } 
     else if (c.type === 'TR') {
-        // トランジスタ：TO-92パッケージ
         ctx.fillStyle = '#333';
         ctx.beginPath();
         ctx.arc(x + w / 2, y + 20, 20, Math.PI, 0);
@@ -130,22 +127,20 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillText(c.trType || "NPN", x + w / 2 - 10, y + 35);
     } 
     else if (c.type === 'NOT_IC') {
-        // IC：74HC04
         ctx.fillStyle = '#222';
         ctx.fillRect(x, y, w, h);
-        ctx.fillStyle = '#111'; // 切り欠き
+        ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(x, y + h / 2, 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
         ctx.fillStyle = '#fff';
         ctx.font = "bold 10px Arial";
-        if (c.isActive) { // あるいは通電状態を判定する変数
-           ctx.fillStyle = '#2ecc71'; // NASAっぽいネオングリーン
-           ctx.fillText("74HC04(NOT):Active",x + 40, y + h / 2 + 5); // ICの上に表示
-        }else{
-           ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
+        if (c.isActive) {
+           ctx.fillStyle = '#2ecc71';
+           ctx.fillText("74HC04(NOT):Active", x + 10, y - 10);
         }
+        ctx.fillStyle = '#fff';
+        ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
     } 
     else if (c.type === 'BAT') {
-        // 電池
         ctx.fillStyle = '#222';
         ctx.fillRect(x, y, w, h);
         ctx.fillStyle = '#f1c40f';
@@ -157,41 +152,31 @@ function drawComponent(ctx, c, isSelected) {
         ctx.textAlign = "left";
     } 
     else if (c.type === 'PSW') {
-        // タクトスイッチ：銀のボディに黒いボタン
-        ctx.fillStyle = '#bdc3c7'; // 金属色
+        ctx.fillStyle = '#bdc3c7';
         ctx.fillRect(x + 5, y + 5, w - 10, h - 10);
         ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
-        
-        // 中央の丸いボタン
-        ctx.fillStyle = c.state ? '#2ecc71' : '#2c3e50'; // 押されてる間は緑
+        ctx.fillStyle = c.state ? '#2ecc71' : '#2c3e50';
         ctx.beginPath();
         ctx.arc(x + w / 2, y + h / 2, 10, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
-        // 四角いボタンの台座
         ctx.strokeRect(x + w/2 - 6, y + h/2 - 6, 12, 12);
     } 
     else if (c.type === 'SSW') {
-        // スライドスイッチ：黒い長方形にスライダー
         ctx.fillStyle = '#34495e';
         ctx.fillRect(x, y + 5, w, h - 10);
         ctx.strokeRect(x, y + 5, w, h - 10);
-        
-        // スライダー部分
         const sliderX = c.state ? x + w - 15 : x + 5;
         ctx.fillStyle = '#ecf0f1';
         ctx.fillRect(sliderX, y, 10, h);
         ctx.strokeRect(sliderX, y, 10, h);
     }
     else {
-        // その他未定義部品
         ctx.fillStyle = '#95a5a6';
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
     }
 
-    // ピンとラベル
     c.pins.forEach(p => {
         ctx.beginPath();
         ctx.arc(x + p.relX, y + p.relY, 5, 0, Math.PI * 2);
