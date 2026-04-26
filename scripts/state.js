@@ -1,3 +1,6 @@
+/**
+ * state.js - アプリの状態を一括管理
+ */
 export const state = {
     components: [],
     wires: [],
