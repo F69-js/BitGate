@@ -61,12 +61,14 @@ export function initUIListeners() {
         // 1. ピンのクリック判定
         let hitPin = null;
         for (let c of state.components) {
-            for (let p of c.pins) {
-                const pinPos = getPinPos(c, p);
-                if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / state.zoom) {
-                    hitPin = { comp: c, pin: p }; break;
-                }
-            }
+           // ui.js の 74行目付近
+for (let p of c.pins) {
+    const pinPos = getPinPos(c, p); // components.js の新 getPinPos を呼ぶ
+    // 判定距離を少し調整 (15 / state.zoom)
+    if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / state.zoom) {
+        hitPin = { comp: c, pin: p }; break;
+    }
+}
             if (hitPin) break;
         }
 
