@@ -124,44 +124,48 @@ export function drawComponent(ctx, c, isSelected) {
     else if (c.type === 'CAP') {
     ctx.save();
     
-    // パーツの左上が (c.x, c.y)
-    const x = c.x;
-    const y = c.y;
-    const w = c.w;
-    const h = c.h;
-    const radius = 6;
+    // 描画位置の確定
+    const drawX = c.x;
+    const drawY = c.y;
+    const drawW = c.w;
+    const drawH = c.h;
+    const r = 5; // 角丸の半径
 
-    // 1. 本体の円筒
-    ctx.fillStyle = "#2c3e50";
+    // --- 1. 本体の描画 ---
+    ctx.fillStyle = "#2c3e50"; // 濃紺
     ctx.beginPath();
     if (ctx.roundRect) {
-        ctx.roundRect(x, y, w, h, radius);
+        ctx.roundRect(drawX, drawY, drawW, drawH, r);
     } else {
-        ctx.rect(x, y, w, h);
+        ctx.rect(drawX, drawY, drawW, drawH);
     }
     ctx.fill();
 
-    // 2. マイナス極の帯（右側）
+    // --- 2. マイナス側の帯 (右側) ---
     ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
     ctx.beginPath();
+    // 本体の右端から30%の幅をカバー
+    const stripeW = drawW * 0.3;
+    const stripeX = drawX + (drawW - stripeW);
     if (ctx.roundRect) {
-        // 本体の右側 30% くらいを覆う
-        ctx.roundRect(x + w * 0.7, y, w * 0.3, h, [0, radius, radius, 0]);
+        ctx.roundRect(stripeX, drawY, stripeW, drawH, [0, r, r, 0]);
     } else {
-        ctx.rect(x + w * 0.7, y, w * 0.3, h);
+        ctx.rect(stripeX, drawY, stripeW, drawH);
     }
     ctx.fill();
 
-    // 3. マイナスマーク
-    ctx.strokeStyle = "white";
+    // --- 3. マイナスマーク ---
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.8, y + h / 2);
-    ctx.lineTo(x + w * 0.9, y + h / 2);
+    const centerX = stripeX + (stripeW / 2);
+    const centerY = drawY + (drawH / 2);
+    ctx.moveTo(centerX - 4, centerY);
+    ctx.lineTo(centerX + 4, centerY);
     ctx.stroke();
 
     ctx.restore();
-} 
+}
     // --- LED (発光エフェクト付き) ---
     else if (c.type === 'LED') {
         const baseColor = c.color || '#ff3232';
@@ -313,13 +317,14 @@ export function addComponent(type) {
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
     } else if (type === 'CAP') {
     obj.w = 40; 
-    obj.h = 24;
+    obj.h = 20; // 高さを少し抑えるとより円筒らしくなります
     obj.val = 1000;
+    // ピンの relX, relY は「c.x, c.y からの距離」です
     obj.pins = [
-        { id: id + 'p1', type: 'NEU', relX: 0, relY: 12, label: '+' }, // 左端の中央
-        { id: id + 'p2', type: 'NEU', relX: 40, relY: 12, label: '-' } // 右端の中央
+        { id: id + 'p1', type: 'NEU', relX: 0, relY: 10, label: '+' }, // 左中央
+        { id: id + 'p2', type: 'NEU', relX: 40, relY: 10, label: '-' } // 右中央
     ];
-    } else if (type === 'NOT_IC') {
+}} else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
