@@ -10,7 +10,12 @@ async function saveCircuit() {
         zoom: zoom,
         offset: offset
     };
-    const json = JSON.stringify(data, null, 2);
+    let json={};
+    try{
+        json = JSON.stringify(data, null, 2);
+    }catch(e){
+        showErrorDialog("保存に失敗しました", "エラーが発生したため、ファイルを保存できませんでした。", e.message);
+    }
 
     // 1. Direct File System Access API (Chrome/Edgeなど)
     if ('showSaveFilePicker' in window) {
@@ -29,7 +34,7 @@ async function saveCircuit() {
             return;
         } catch (err) {
             if (err.name === 'AbortError') return;
-            console.error("Direct save failed, falling back to download...", err);
+            showErrorDialog("保存に失敗しました", "エラーが発生したため、ファイルを保存できませんでした。", err.message);
         }
     }
 
