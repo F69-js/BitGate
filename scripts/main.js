@@ -162,3 +162,5 @@ document.getElementById('delBtn')?.addEventListener('click', deleteSelected);
 
 window.addComponent = addComponent;
 window.deleteSelected = deleteSelected;
+window.loadCircuit = loadCircuit;
+window.saveCircuit = saveCircuit;
