@@ -89,13 +89,17 @@ canvas {
     cursor: crosshair;
 }
 
+/* 修正: コントロール全体の隙間調整 */
 .controls {
     display: flex;
     align-items: center;
     gap: 15px;
+    flex-wrap: nowrap; /* 勝手に改行（縦並び）させない */
 }
 
+/* 修正: ボタンの文字が折り返さないようにする */
 .btn-action {
+    white-space: nowrap; /* ボタン内の文字を一行に固定 */
     background: var(--accent-color);
     color: white;
     border: none;
@@ -105,7 +109,6 @@ canvas {
     font-weight: bold;
     transition: 0.2s;
 }
-
 .btn-action.active {
     background: var(--warning-color);
     box-shadow: 0 0 15px rgba(243, 156, 18, 0.4);
@@ -143,4 +146,12 @@ canvas {
     font-size: 0.85em;
     min-width: 180px;
     text-align: right;
+}
+
+/* 追加: ファイル操作エリアの横並びを固定 */
+.file-ops {
+    display: flex;       /* 横並びにする */
+    align-items: center; /* 垂直方向を中央に */
+    gap: 8px;           /* ボタン間の隙間 */
+    flex-shrink: 0;      /* 狭くなっても潰れないように固定 */
 }
