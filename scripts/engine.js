@@ -11,6 +11,27 @@ function updateSimulation() {
 
     const batteries = components.filter(c => c.type === 'BAT');
     const capacitors = components.filter(c => c.type === 'CAP');
+    components.filter(c => c.type === 'CAP').forEach(cap => {
+    // 1. 電流が流れている場合のみ充電
+    if (cap.currentI > 0) {
+        // 容量(μF)を取得。0だとエラーになるので最小値を設ける
+        const capacity = Math.max(cap.val, 0.1); 
+        
+        // 充電速度の計算。容量が大きいほど、加算される charge は小さくなる
+        // 0.01 はシミュレーション速度の調整定数
+        const chargeStep = (cap.currentI * 0.01) / (capacity / 1000); 
+        
+        cap.charge += chargeStep;
+
+        // 2. 電圧の限界（入力電圧 = cap.val(BAT) に達したら飽和）
+        if (cap.charge > 9) { // 9V電池想定なら9
+            cap.charge = 9;
+        }
+    } else {
+        // 電流が止まったら自然放電（オプション）
+        cap.charge *= 0.99; 
+    }
+});
 
     // 1. まず電池からの給電と充電を計算
     batteries.forEach(bat => {
@@ -67,6 +88,7 @@ ics.forEach(ic => {
     }
 });
 
+    
     // 自然放電（微量）
     capacitors.forEach(c => {
         if (!c.isBeingCharged && c.currentI === 0) c.charge *= 0.999;
