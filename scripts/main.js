@@ -158,3 +158,16 @@ function drawGrid() {
     }
     ctx.stroke();
 }
+
+import { addComponent } from './components.js';
+
+window.addComponent = addComponent;
+window.deleteSelected = deleteSelected;
+
+// システム起動時にUIを初期化
+window.onload = () => {
+    resizeCanvas();
+    initUIListeners();
+    updateUI(); // 初期状態のUI更新
+    requestAnimationFrame(draw);
+};
