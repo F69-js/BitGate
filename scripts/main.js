@@ -1,5 +1,5 @@
 /**
- * main.js - 修正版
+ * main.js - Worker Integration & Drawing Logic
  */
 
 let physicsWorker = new Worker('scripts/worker.js');
@@ -19,6 +19,42 @@ physicsWorker.onmessage = function(e) {
     }
 };
 
+// --- 描画関数本体 ---
+function draw() {
+    if (!ctx) return;
+
+    // キャンバスのリセット
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    ctx.restore();
+
+    // ズーム・パンの適用
+    ctx.save();
+    ctx.translate(offset.x, offset.y);
+    ctx.scale(zoom, zoom);
+
+    // 1. 配線の描画
+    wires.forEach(w => {
+        ctx.beginPath();
+        ctx.strokeStyle = w.from.comp.currentI > 0 ? "#2ecc71" : "#555";
+        ctx.lineWidth = 3;
+        ctx.moveTo(w.from.comp.x, w.from.comp.y); // 本来は端子座標だが簡略化
+        ctx.lineTo(w.to.comp.x, w.to.comp.y);
+        ctx.stroke();
+    });
+
+    // 2. コンポーネントの描画
+    components.forEach(c => {
+        // components.js で定義されている各部品の描画関数を呼び出す
+        if (typeof renderComponent === 'function') {
+            renderComponent(ctx, c);
+        }
+    });
+
+    ctx.restore();
+}
+
 // メインループ
 function loop() {
     if (isRunning) {
@@ -29,25 +65,20 @@ function loop() {
         physicsWorker.postMessage({ type: 'TICK' });
     }
     
-    // draw() が ui.js 等で定義されていることを確認
-    // もし ui.js 内で canvas 描画関数を別名にしている場合はここを書き換えてください
-    if (typeof draw === 'function') {
-        draw(); 
-    } else {
-        // デバッグ用：drawが見つからない場合の警告
-        console.warn("draw function is not defined. Checking ui.js...");
-    }
-    
+    draw(); 
     requestAnimationFrame(loop);
 }
 
-// 起動！
-loop();
-
-// イベントリスナーは DOMContentLoaded の後か、スクリプト末尾で確実に
-document.getElementById('startBtn').addEventListener('click', () => {
-    isRunning = !isRunning;
-    const btn = document.getElementById('startBtn');
-    btn.classList.toggle('active', isRunning);
-    btn.innerText = isRunning ? "STOP SYSTEM" : "RUN SYSTEM";
-});
+// 初期化と起動
+window.onload = () => {
+    loop();
+    
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) {
+        startBtn.onclick = () => {
+            isRunning = !isRunning;
+            startBtn.classList.toggle('active', isRunning);
+            startBtn.innerText = isRunning ? "STOP SYSTEM" : "RUN SYSTEM";
+        };
+    }
+};
