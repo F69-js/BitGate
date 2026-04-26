@@ -9,7 +9,7 @@ async function loadCircuit() {
             const [handle] = await window.showOpenFilePicker({
                 types: [{
                     description: 'BitGate Circuit File',
-                    accept: { 'application/json': ['.json'] },
+                    accept: { 'application/octet-stream': ['.btg'] },
                 }],
             });
             const file = await handle.getFile();
@@ -25,7 +25,7 @@ async function loadCircuit() {
     // 2. Fallback: input#file
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.btg';
     input.onchange = e => {
         const file = e.target.files[0];
         const reader = new FileReader();
