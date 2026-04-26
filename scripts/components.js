@@ -324,7 +324,7 @@ export function addComponent(type) {
         { id: id + 'p1', type: 'NEU', relX: 0, relY: 10, label: '+' }, // 左中央
         { id: id + 'p2', type: 'NEU', relX: 40, relY: 10, label: '-' } // 右中央
     ];
-}} else if (type === 'NOT_IC') {
+    }else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
