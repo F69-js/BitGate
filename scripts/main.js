@@ -1,36 +1,33 @@
 /**
  * main.js - Core System & Drawing Loop
- * ES Module with WebWorker integration
  */
 import { state } from './state.js';
 import { initUIListeners, updateUI, deleteSelected } from './ui.js';
-import { drawComponent, getPinPos } from './components.js';
+import { drawComponent, getPinPos, addComponent } from './components.js';
 
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
 const viewport = document.getElementById('viewport');
 
-// --- Workerの設定 ---
-// 注意: worker.js 側も ES Module として書いている場合は { type: "module" } が必要
+// --- WebWorkerの初期化 ---
 const physicsWorker = new Worker('scripts/worker.js');
 
 physicsWorker.onmessage = (e) => {
     if (e.data.type === 'RESULT') {
-        // Workerからの計算結果（電流値や充電量）を反映
         e.data.components.forEach(upd => {
             const target = state.components.find(c => c.id === upd.id);
             if (target) {
                 target.currentI = upd.currentI;
                 target.charge = upd.charge;
-                target.isActive = upd.isActive; // ICの状態など
-                target.isBlown = upd.isBlown;   // LEDの焼損など
+                target.isActive = upd.isActive;
+                target.isBlown = upd.isBlown;
             }
         });
     }
 };
 
 /**
- * キャンバスのリサイズ処理
+ * キャンバスのリサイズ
  */
 function resizeCanvas() {
     const w = viewport.clientWidth;
@@ -41,32 +38,11 @@ function resizeCanvas() {
     }
 }
 
-// 起動処理
-window.addEventListener('load', () => {
-    resizeCanvas();
-    initUIListeners();
-    requestAnimationFrame(draw);
-});
-
-window.addEventListener('resize', resizeCanvas);
-
-/**
- * UIボタン：システム実行/停止
- */
-const startBtn = document.getElementById('startBtn');
-if (startBtn) {
-    startBtn.addEventListener('click', () => {
-        state.isSimulating = !state.isSimulating;
-        startBtn.classList.toggle('active', state.isSimulating);
-        startBtn.innerText = state.isSimulating ? "STOP SYSTEM" : "RUN SYSTEM";
-    });
-}
-
 /**
  * メインループ
  */
 function draw() {
-    // --- シミュレーション更新 (Worker通信) ---
+    // 1. シミュレーションの実行 (Workerへ送信)
     if (state.isSimulating) {
         physicsWorker.postMessage({
             type: 'SYNC',
@@ -78,28 +54,28 @@ function draw() {
         physicsWorker.postMessage({ type: 'TICK' });
     }
 
-    // --- 描画処理 ---
+    // 2. 画面クリア
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // 座標系全体をズーム・オフセット適用
+    // 座標系の変形
     ctx.translate(state.offset.x, state.offset.y);
     ctx.scale(state.zoom, state.zoom);
 
+    // 3. グリッド描画
     drawGrid();
 
-    // 1. 配線描画
+    // 4. 配線の描画
     state.wires.forEach(w => {
         const p1 = getPinPos(w.from.comp, w.from.pin);
         const p2 = getPinPos(w.to.comp, w.to.pin);
         const pts = [p1, ...w.points, p2];
         
         ctx.beginPath(); 
-        // 選択中の配線は太く強調
         const isSelected = (state.selectedObj?.type === 'wire' && state.selectedObj.ref === w);
         ctx.lineWidth = isSelected ? 5 / state.zoom : 3 / state.zoom;
-        // 電流が流れている配線を色分け（Workerの結果を利用）
-        ctx.strokeStyle = isSelected ? '#2ecc71' : (w.from.comp.currentI > 0 ? '#e74c3c' : '#333');
+        // 電流が流れている（0.01A以上）ときは赤、それ以外は黒
+        ctx.strokeStyle = isSelected ? '#2ecc71' : (w.from.comp.currentI > 0.01 ? '#e74c3c' : '#333');
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         
@@ -110,17 +86,13 @@ function draw() {
         ctx.stroke();
     });
 
-    // 2. コンポーネント描画
-    state.components.forEach(c => {
-        const isSelected = (state.selectedObj?.type === 'comp' && state.selectedObj.ref === c);
-        drawComponent(ctx, c, isSelected);
-    });
-
-    // 3. 配線作成中のプレビュー
+    // 5. 配線作成中のプレビュー描画
     if (state.activeLine) {
         const pStart = getPinPos(state.activeLine.startComp, state.activeLine.startPin);
+        // 折れ点がある場合はそれらを経由し、最後にマウス位置へ
         const pts = [pStart, ...state.activeLine.points, state.mouse];
         
+        ctx.save();
         ctx.strokeStyle = '#2ecc71'; 
         ctx.lineWidth = 2 / state.zoom;
         ctx.setLineDash([5/state.zoom, 5/state.zoom]); 
@@ -130,15 +102,21 @@ function draw() {
             ctx.lineTo(pts[i].x, pts[i].y);
         }
         ctx.stroke(); 
-        ctx.setLineDash([]);
+        ctx.restore();
     }
+
+    // 6. コンポーネントの描画
+    state.components.forEach(c => {
+        const isSelected = (state.selectedObj?.type === 'comp' && state.selectedObj.ref === c);
+        drawComponent(ctx, c, isSelected);
+    });
 
     ctx.restore();
     requestAnimationFrame(draw);
 }
 
 /**
- * グリッド描画
+ * 背景グリッド
  */
 function drawGrid() {
     const gridStep = 50;
@@ -159,15 +137,26 @@ function drawGrid() {
     ctx.stroke();
 }
 
-import { addComponent } from './components.js';
+// --- 初期化とグローバル公開 ---
 
-window.addComponent = addComponent;
-window.deleteSelected = deleteSelected;
-
-// システム起動時にUIを初期化
-window.onload = () => {
+window.addEventListener('load', () => {
     resizeCanvas();
     initUIListeners();
-    updateUI(); // 初期状態のUI更新
-    requestAnimationFrame(draw);
-};
+    updateUI();
+});
+
+window.addEventListener('resize', resizeCanvas);
+
+// UIボタンのイベント登録
+document.getElementById('startBtn')?.addEventListener('click', () => {
+    state.isSimulating = !state.isSimulating;
+    const btn = document.getElementById('startBtn');
+    btn.classList.toggle('active', state.isSimulating);
+    btn.innerText = state.isSimulating ? "STOP SYSTEM" : "RUN SYSTEM";
+});
+
+document.getElementById('delBtn')?.addEventListener('click', deleteSelected);
+
+// HTML（onclick）から呼べるようにwindowに公開
+window.addComponent = addComponent;
+window.deleteSelected = deleteSelected;
