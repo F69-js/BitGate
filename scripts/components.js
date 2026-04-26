@@ -1,5 +1,6 @@
 /**
  * components.js - Drawing Logic & Physical Constants
+ * 提供されたリッチな描画ロジックを完全保持
  */
 import { state } from './state.js';
 
@@ -12,9 +13,9 @@ export const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", 
 export function getPinPos(c, p) {
     if (!c || !p) return { x: 0, y: 0 };
     const angle = c.angle || 0;
-    // 部品中心からの相対座標
-    const rx = p.relX - c.w / 2;
-    const ry = p.relY - c.h / 2;
+    // 部品中心からの相対座標 (提供された relX, relY を使用)
+    const rx = (p.relX ?? p.x) - c.w / 2;
+    const ry = (p.relY ?? p.y) - c.h / 2;
     // 回転行列による計算
     const nx = rx * Math.cos(angle) - ry * Math.sin(angle);
     const ny = rx * Math.sin(angle) + ry * Math.cos(angle);
@@ -84,43 +85,33 @@ export function drawComponent(ctx, c, isSelected) {
         ctx.fillStyle = '#ccc';
         ctx.fillRect(dx, dy + 2, 5, h - 14); // マイナス側の帯
         ctx.strokeRect(dx, dy, w, h - 10);
-        // 充電率の可視化
         const fillH = Math.min(((c.charge || 0) / 9), 1) * (h - 10);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.fillRect(dx, dy + (h - 10), w, -fillH);
     } 
-    // --- LED (発光エフェクト付き) ---
+    // --- LED ---
     else if (c.type === 'LED') {
         const baseColor = c.color || '#ff3232';
         const brightness = 0.2 + Math.min((c.currentI || 0) * 50, 0.6);
-        
         ctx.save();
-        // 1. 足（台座）
         ctx.fillStyle = '#bbb';
         ctx.fillRect(dx + w / 2 - 15, dy + 30, 30, 5);
-
-        // 2. ボディ（レンズ）
         if (c.isBlown) {
-            ctx.fillStyle = '#333'; // 焼損
+            ctx.fillStyle = '#333';
         } else {
             ctx.fillStyle = baseColor;
             ctx.globalAlpha = brightness;
         }
-        
         ctx.beginPath();
         ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
         ctx.lineTo(dx + w / 2 + 15, dy + 35);
         ctx.lineTo(dx + w / 2 - 15, dy + 35);
         ctx.closePath();
         ctx.fill();
-        
-        // 3. 縁取り（白LED対策）
         ctx.globalAlpha = 1.0; 
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-
-        // 4. 発光（シャドウエフェクト）
         if (!c.isBlown && (c.currentI || 0) > 0.001) {
             ctx.shadowBlur = 20;
             ctx.shadowColor = baseColor;
@@ -150,7 +141,6 @@ export function drawComponent(ctx, c, isSelected) {
     else if (c.type === 'NOT_IC') {
         ctx.fillStyle = '#222';
         ctx.fillRect(dx, dy, w, h);
-        // 切り欠き
         ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(dx, dy + h / 2, 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
         ctx.fillStyle = '#fff';
@@ -167,7 +157,7 @@ export function drawComponent(ctx, c, isSelected) {
         ctx.fillStyle = '#222';
         ctx.fillRect(dx, dy, w, h);
         ctx.fillStyle = '#f1c40f';
-        ctx.fillRect(dx, dy, w, 15); // プラス端子側の装飾
+        ctx.fillRect(dx, dy, w, 15);
         ctx.fillStyle = '#fff';
         ctx.font = "bold 12px Arial";
         ctx.textAlign = "center";
@@ -192,6 +182,7 @@ export function drawComponent(ctx, c, isSelected) {
         ctx.fillRect(sliderX, dy, 10, h);
         ctx.strokeRect(sliderX, dy, 10, h);
     }
+
     // --- 共通のピン描画 ---
     if (c.pins) {
         c.pins.forEach(p => {
@@ -201,7 +192,6 @@ export function drawComponent(ctx, c, isSelected) {
             ctx.fill();
             ctx.stroke();
             
-            // ラベルの描画
             ctx.fillStyle = "#333";
             ctx.font = "bold 10px sans-serif";
             ctx.textAlign = "left";
@@ -225,7 +215,6 @@ export function addComponent(type) {
         currentI: 0, state: false, isBlown: false, charge: 0 
     };
 
-    // 部品ごとのサイズとピン定義
     if (type === 'BAT') {
         obj.w = 110; obj.h = 65;
         obj.pins = [{ id: id+'p', type: 'POS', relX: 110, relY: 20, label: '+' }, { id: id+'n', type: 'NEG', relX: 110, relY: 45, label: '-' }];
@@ -263,10 +252,7 @@ export function addComponent(type) {
             { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
             { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
         ];
-    } else if (type === 'PSW') {
-        obj.w = 50; obj.h = 40;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
-    } else if (type === 'SSW') {
+    } else if (type === 'PSW' || type === 'SSW') {
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
     }
