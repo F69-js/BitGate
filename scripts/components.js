@@ -69,6 +69,49 @@ export function drawComponent(ctx, c, isSelected) {
             ctx.fillRect(dx + 65, dy, 6, h);
         }
     } 
+    else if (c.type === 'CAP') {
+    ctx.save();
+    
+    // 1. 本体の円筒（角丸の長方形）
+    const radius = 6;
+    ctx.fillStyle = "#2c3e50"; // 電解コンデンサらしい濃紺
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(c.x, c.y, c.w, c.h, radius);
+    } else {
+        ctx.rect(c.x, c.y, c.w, c.h); // フォールバック
+    }
+    ctx.fill();
+
+    // 2. マイナス極を示す白い帯（ストライプ）
+    // 右側30%の領域を白っぽく塗る
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(c.x + c.w * 0.65, c.y, c.w * 0.35, c.h, [0, radius, radius, 0]);
+    } else {
+        ctx.rect(c.x + c.w * 0.65, c.y, c.w * 0.35, c.h);
+    }
+    ctx.fill();
+
+    // 3. 帯の中にマイナス記号「-」を描画
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c.x + c.w * 0.75, c.y + c.h / 2);
+    ctx.lineTo(c.x + c.w * 0.85, c.y + c.h / 2);
+    ctx.stroke();
+
+    // 4. 金属の質感（ハイライト）を薄く入れる
+    const gradient = ctx.createLinearGradient(c.x, c.y, c.x, c.y + c.h);
+    gradient.addColorStop(0, "rgba(255,255,255,0.1)");
+    gradient.addColorStop(0.5, "rgba(255,255,255,0)");
+    gradient.addColorStop(1, "rgba(0,0,0,0.2)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(c.x, c.y, c.w, c.h);
+
+    ctx.restore();
+}
     // --- ダイオード (DIO) ---
     else if (c.type === 'DIO') {
         ctx.fillStyle = '#222';
@@ -239,13 +282,14 @@ export function addComponent(type) {
         obj.w = 60; obj.h = 20;
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
     } else if (type === 'CAP') {
-        obj.w = 30; obj.h = 40;
-        obj.val = 1000; // 1000uF
-        obj.pins = [
-            { id: id + 'p1', type: 'NEU', relX: 15, relY: 0, label: '1' }, // 上側
-            { id: id + 'p2', type: 'NEU', relX: 15, relY: 40, label: '2' } // 下側
-        ];
-    } else if (type === 'NOT_IC') {
+    obj.w = 40; obj.h = 24; // 円筒形らしく横長に
+    obj.val = 1000;
+    obj.color = "#2c3e50"; // 電解コンデンサによくあるネイビー
+    obj.pins = [
+        { id: id + 'p1', type: 'NEU', relX: 0, relY: 12, label: '+' }, // 左
+        { id: id + 'p2', type: 'NEU', relX: 40, relY: 12, label: '-' } // 右
+    ];
+} else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
