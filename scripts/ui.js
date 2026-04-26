@@ -1,8 +1,7 @@
 /**
  * ui.js - Updated with Rotation, Shift key, and Dynamic Color Dropdown
  */
-var zoom = 1.0;
-var offset = { x: 0, y: 0 };
+import { draggingObj, components, offset, zoom } from './main.js';
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
