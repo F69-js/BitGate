@@ -1,20 +1,22 @@
-/**
- * main.js - Core System with WebWorker and Advanced Drawing
- */
+import { renderComponent } from './components.js'; // コンポーネント描画
+import { initUIListeners } from './ui.js';       // UIイベント
 
-// --- 1. グローバルステート ---
-const canvas = document.getElementById('cvs'); // IDを'cvs'に統一
+export let components = [];
+export let wires = [];
+export let zoom = 1.0;
+export let offset = { x: 0, y: 0 };
+export let draggingObj = null; 
+export let selectedObj = null;
+export let activeLine = null;
+export let isSimulating = false;
+
+// setter関数を用意すると安全
+export function setDraggingObj(val) { draggingObj = val; }
+export function setSelectedObj(val) { selectedObj = val; }
+
+const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
 const viewport = document.getElementById('viewport');
-
-let components = [];
-let wires = [];
-let isSimulating = false;
-let selectedObj = null;
-let activeLine = null;
-let mouse = { x: 0, y: 0 };
-
-// Worker初期化
 const physicsWorker = new Worker('scripts/worker.js');
 
 // --- 2. Workerからの計算結果受取 ---
