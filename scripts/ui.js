@@ -23,7 +23,7 @@ function distToSegment(p, v, w) {
     return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
 }
 
-function initUIListeners() {
+export function initUIListeners() {
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
     canvas.addEventListener('wheel', e => {
@@ -182,7 +182,7 @@ function initUIListeners() {
     });
 }
 
-function updateUI() {
+export function updateUI() {
     const ea = document.getElementById('editArea');
     const ts = document.getElementById('typeSelect');
     const tl = document.getElementById('targetLabel');
