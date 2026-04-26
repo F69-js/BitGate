@@ -39,18 +39,34 @@ function applyData(jsonText) {
     try {
         const data = JSON.parse(jsonText);
         
-        // データの復元
-        // 注意: 配線(wires)はオブジェクト参照を含むため、読み込み後にID等で再紐付けが必要な場合があります
+        // 1. まずコンポーネントを復元
         components = data.components || [];
-        wires = data.wires || [];
+        
+        // 2. 配線の復元と再紐付け
+        // JSON化で失われた「どの部品オブジェクトか」という参照をIDで検索して繋ぎ直す
+        wires = (data.wires || []).map(w => {
+            const fromComp = components.find(c => c.id === w.from.comp.id);
+            const toComp = components.find(c => c.id === w.to.comp.id);
+            
+            if (fromComp && toComp) {
+                return {
+                    ...w,
+                    from: { ...w.from, comp: fromComp },
+                    to: { ...w.to, comp: toComp }
+                };
+            }
+            return null; // 紐付け失敗した配線は破棄
+        }).filter(w => w !== null);
+
+        // 3. 画面表示の復元
         zoom = data.zoom || 1.0;
         offset = data.offset || { x: 0, y: 0 };
         
         selectedObj = null;
         if (typeof updateUI === 'function') updateUI();
-        console.log("Circuit loaded successfully");
+        console.log("Circuit re-linked and loaded successfully.");
     } catch (err) {
-        alert("ファイルの読み込みに失敗しました。");
+        alert("BTGファイルの読み込みに失敗しました。");
         console.error(err);
     }
 }
