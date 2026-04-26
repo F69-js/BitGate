@@ -151,14 +151,39 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillText(c.val + "V BLOCK", x + w / 2, y + 45);
         ctx.textAlign = "left";
     } 
+    else if (c.type === 'PSW') {
+        // タクトスイッチ：銀のボディに黒いボタン
+        ctx.fillStyle = '#bdc3c7'; // 金属色
+        ctx.fillRect(x + 5, y + 5, w - 10, h - 10);
+        ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+        
+        // 中央の丸いボタン
+        ctx.fillStyle = c.state ? '#2ecc71' : '#2c3e50'; // 押されてる間は緑
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h / 2, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // 四角いボタンの台座
+        ctx.strokeRect(x + w/2 - 6, y + h/2 - 6, 12, 12);
+    } 
+    else if (c.type === 'SSW') {
+        // スライドスイッチ：黒い長方形にスライダー
+        ctx.fillStyle = '#34495e';
+        ctx.fillRect(x, y + 5, w, h - 10);
+        ctx.strokeRect(x, y + 5, w, h - 10);
+        
+        // スライダー部分
+        const sliderX = c.state ? x + w - 15 : x + 5;
+        ctx.fillStyle = '#ecf0f1';
+        ctx.fillRect(sliderX, y, 10, h);
+        ctx.strokeRect(sliderX, y, 10, h);
+    }
     else {
-        // スイッチ (PSW, SSW など)
-        ctx.fillStyle = c.state ? '#2ecc71' : '#e74c3c';
+        // その他未定義部品
+        ctx.fillStyle = '#95a5a6';
         ctx.fillRect(x, y, w, h);
         ctx.strokeRect(x, y, w, h);
-        ctx.fillStyle = '#000';
-        ctx.font = "9px Arial";
-        ctx.fillText(c.type, x + 5, y + h / 2);
     }
 
     // ピンとラベル
