@@ -116,3 +116,13 @@ function drawGrid() {
     }
     ctx.stroke();
 }
+window.onerror = function(msg, url, line, col, error) {
+    const detail = `予期しない状態の詳細: ファイル: ${url.split('/').pop()}、行: ${line}:${col}\n${msg}`;
+    showErrorDialog(
+        "予期しないエラーが発生しました",
+        "予期しないエラーが発生したため、BitGateCadは動作を中止しました。\n問題を報告してから再読み込みしてください。",
+        detail,
+        true // 再読み込みボタンを有効化
+    );
+    return true; // ブラウザ標準のコンソールエラー出力を抑制（任意）
+};
