@@ -122,16 +122,46 @@ export function drawComponent(ctx, c, isSelected) {
     } 
     // --- コンデンサ (CAP) ---
     else if (c.type === 'CAP') {
-        ctx.fillStyle = '#1e3799';
-        ctx.fillRect(dx, dy, w, h - 10);
-        ctx.fillStyle = '#ccc';
-        ctx.fillRect(dx, dy + 2, 5, h - 14); // マイナス側の帯
-        ctx.strokeRect(dx, dy, w, h - 10);
-        // 充電率の可視化
-        const fillH = Math.min(((c.charge || 0) / 9), 1) * (h - 10);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(dx, dy + (h - 10), w, -fillH);
-    } 
+    ctx.save();
+    
+    // パーツの左上が (c.x, c.y)
+    const x = c.x;
+    const y = c.y;
+    const w = c.w;
+    const h = c.h;
+    const radius = 6;
+
+    // 1. 本体の円筒
+    ctx.fillStyle = "#2c3e50";
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, radius);
+    } else {
+        ctx.rect(x, y, w, h);
+    }
+    ctx.fill();
+
+    // 2. マイナス極の帯（右側）
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        // 本体の右側 30% くらいを覆う
+        ctx.roundRect(x + w * 0.7, y, w * 0.3, h, [0, radius, radius, 0]);
+    } else {
+        ctx.rect(x + w * 0.7, y, w * 0.3, h);
+    }
+    ctx.fill();
+
+    // 3. マイナスマーク
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.8, y + h / 2);
+    ctx.lineTo(x + w * 0.9, y + h / 2);
+    ctx.stroke();
+
+    ctx.restore();
+} 
     // --- LED (発光エフェクト付き) ---
     else if (c.type === 'LED') {
         const baseColor = c.color || '#ff3232';
@@ -282,14 +312,14 @@ export function addComponent(type) {
         obj.w = 60; obj.h = 20;
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
     } else if (type === 'CAP') {
-    obj.w = 40; obj.h = 24; // 円筒形らしく横長に
+    obj.w = 40; 
+    obj.h = 24;
     obj.val = 1000;
-    obj.color = "#2c3e50"; // 電解コンデンサによくあるネイビー
     obj.pins = [
-        { id: id + 'p1', type: 'NEU', relX: 0, relY: 12, label: '+' }, // 左
-        { id: id + 'p2', type: 'NEU', relX: 40, relY: 12, label: '-' } // 右
+        { id: id + 'p1', type: 'NEU', relX: 0, relY: 12, label: '+' }, // 左端の中央
+        { id: id + 'p2', type: 'NEU', relX: 40, relY: 12, label: '-' } // 右端の中央
     ];
-} else if (type === 'NOT_IC') {
+    } else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
