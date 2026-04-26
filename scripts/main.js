@@ -79,22 +79,30 @@ function loop() {
  * 初期化処理
  */
 window.addEventListener('load', () => {
-    // HTML上のcanvas要素を取得（idが'canvas'であると仮定）
+    // 1. まず ID 'canvas' で探す
     cvs = document.getElementById('canvas'); 
+    
+    // 2. 見つからない場合、タグ名で直接取得 (HTMLにcanvasが1つしかない場合有効)
+    if (!cvs) {
+        cvs = document.querySelector('canvas');
+    }
+
     if (cvs) {
         ctx = cvs.getContext('2d');
+        console.log("Canvas context secured.");
     } else {
-        console.error("Canvas element not found!");
+        // それでもダメならエラーダイアログを出す（前回作った仕組みを活用！）
+        if (typeof showErrorDialog === 'function') {
+            showErrorDialog(
+                "初期化失敗",
+                "Canvas要素が見つかりません。HTMLの構造を確認してください。",
+                "selector: document.querySelector('canvas') returns null"
+            );
+        }
     }
 
+    // 以下、既存の処理...
     const startBtn = document.getElementById('startBtn');
-    if (startBtn) {
-        startBtn.onclick = () => {
-            isRunning = !isRunning;
-            startBtn.classList.toggle('active', isRunning);
-            startBtn.innerText = isRunning ? "STOP SYSTEM" : "RUN SYSTEM";
-        };
-    }
-
-    loop(); // 全てが準備できてからループ開始
+    // ...
+    loop(); 
 });
