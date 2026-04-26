@@ -255,8 +255,19 @@ export function addComponent(type) {
         obj.w = 160; obj.h = 60;
         obj.pins = [
             { id: id+'p14', type: 'VCC', relX: 10,  relY: 0,  label: 'VCC' },
-            { id: id+'p7',  type: 'GND', relX: 150, relY: 60, label: 'GND' }
-            // 他のピンは省略
+            { id: id+'p13', type: 'IN',  relX: 35,  relY: 0,  label: '6A' },
+            { id: id+'p12', type: 'OUT', relX: 60,  relY: 0,  label: '6Y' },
+            { id: id+'p11', type: 'IN',  relX: 85,  relY: 0,  label: '5A' },
+            { id: id+'p10', type: 'OUT', relX: 110, relY: 0,  label: '5Y' },
+            { id: id+'p9',  type: 'IN',  relX: 135, relY: 0,  label: '4A' },
+            { id: id+'p8',  type: 'OUT', relX: 160, relY: 0,  label: '4Y' },
+            { id: id+'p1',  type: 'IN',  relX: 10,  relY: 60, label: '1A' },
+            { id: id+'p2',  type: 'OUT', relX: 35,  relY: 60, label: '1Y' },
+            { id: id+'p3',  type: 'IN',  relX: 60,  relY: 60, label: '2A' },
+            { id: id+'p4',  type: 'OUT', relX: 85,  relY: 60, label: '2Y' },
+            { id: id+'p5',  type: 'IN',  relX: 110, relY: 60, label: '3A' },
+            { id: id+'p6',  type: 'OUT', relX: 135, relY: 60, label: '3Y' },
+            { id: id+'p7',  type: 'GND', relX: 160, relY: 60, label: 'GND' }
         ];
     } else if (type === 'TR') {
         obj.w = 50; obj.h = 50; obj.trType = 'NPN';
