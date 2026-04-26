@@ -1,5 +1,5 @@
 /**
- * main.js - Drawing Loop with Zoom Correction
+ * main.js - Drawing Loop with Rotation and Zoom Correction
  */
 
 const canvas = document.getElementById('cvs');
@@ -46,7 +46,7 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
-    // ここで座標系全体をズーム
+    // 座標系全体をズーム・オフセット適用
     ctx.translate(offset.x, offset.y);
     ctx.scale(zoom, zoom);
 
@@ -54,34 +54,42 @@ function draw() {
 
     // 配線描画
     wires.forEach(w => {
-        const p1 = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
-        const p2 = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
+        // getPinPos を使用して回転後の絶対座標を取得
+        const p1 = getPinPos(w.from.comp, w.from.pin);
+        const p2 = getPinPos(w.to.comp, w.to.pin);
         const pts = [p1, ...w.points, p2];
         
         ctx.beginPath(); 
-        // 見た目の太さを一定にする
+        // 選択中の配線は太く強調
         ctx.lineWidth = (selectedObj?.ref === w) ? 5 / zoom : 3 / zoom;
         ctx.strokeStyle = (selectedObj?.ref === w) ? '#2ecc71' : '#333';
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
+        
         ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        for(let i=1; i<pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+        }
         ctx.stroke();
     });
 
+    // コンポーネント描画
     components.forEach(c => drawComponent(ctx, c, selectedObj?.ref === c));
 
     // 配線作成中のプレビュー
     if (activeLine) {
-        const pStart = { x: activeLine.startComp.x + activeLine.startPin.relX, y: activeLine.startComp.y + activeLine.startPin.relY };
+        // 開始点も回転後の座標を取得
+        const pStart = getPinPos(activeLine.startComp, activeLine.startPin);
         const pts = [pStart, ...activeLine.points, mouse];
+        
         ctx.strokeStyle = '#2ecc71'; 
         ctx.lineWidth = 2 / zoom;
-        // 点線の間隔も補正
         ctx.setLineDash([5/zoom, 5/zoom]); 
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
-        for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        for(let i=1; i<pts.length; i++) {
+            ctx.lineTo(pts[i].x, pts[i].y);
+        }
         ctx.stroke(); 
         ctx.setLineDash([]);
     }
