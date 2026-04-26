@@ -1,0 +1,494 @@
+{
+  "version": "1.7",
+  "components": [
+    {
+      "id": 1777172512240,
+      "type": "BAT",
+      "x": 230.46449962856877,
+      "y": 477.7212464983942,
+      "angle": 4.71238898038469,
+      "val": 9,
+      "currentI": 0,
+      "state": false,
+      "isBlown": false,
+      "charge": 0,
+      "w": 110,
+      "h": 65,
+      "pins": [
+        {
+          "id": "1777172512240p",
+          "type": "POS",
+          "relX": 110,
+          "relY": 20,
+          "label": "+"
+        },
+        {
+          "id": "1777172512240n",
+          "type": "NEG",
+          "relX": 110,
+          "relY": 45,
+          "label": "-"
+        }
+      ],
+      "isBeingCharged": false,
+      "isShort": false
+    },
+    {
+      "id": 1777172516512,
+      "type": "RES",
+      "x": 161.91571972376687,
+      "y": 301.85583915090353,
+      "angle": 1.5707963267948966,
+      "val": 470,
+      "currentI": 0,
+      "state": false,
+      "isBlown": false,
+      "charge": 0,
+      "w": 90,
+      "h": 20,
+      "pins": [
+        {
+          "id": "17771725165121",
+          "type": "NEU",
+          "relX": 0,
+          "relY": 10,
+          "label": "1"
+        },
+        {
+          "id": "17771725165122",
+          "type": "NEU",
+          "relX": 90,
+          "relY": 10,
+          "label": "2"
+        }
+      ],
+      "isBeingCharged": false
+    },
+    {
+      "id": 1777172526144,
+      "type": "SSW",
+      "x": 182.53131438377608,
+      "y": 394.32508906395753,
+      "angle": 1.5707963267948966,
+      "val": 20,
+      "currentI": 0,
+      "state": false,
+      "isBlown": false,
+      "charge": 0,
+      "w": 50,
+      "h": 40,
+      "pins": [
+        {
+          "id": "17771725261441",
+          "type": "NEU",
+          "relX": 0,
+          "relY": 20,
+          "label": "L"
+        },
+        {
+          "id": "17771725261442",
+          "type": "NEU",
+          "relX": 50,
+          "relY": 20,
+          "label": "R"
+        }
+      ],
+      "isBeingCharged": false
+    },
+    {
+      "id": 1777172549792,
+      "type": "LED",
+      "x": 258.16943876689265,
+      "y": 209.79089563403141,
+      "angle": 0,
+      "val": 20,
+      "currentI": 0,
+      "state": false,
+      "isBlown": false,
+      "charge": 0,
+      "w": 40,
+      "h": 40,
+      "pins": [
+        {
+          "id": "1777172549792a",
+          "type": "POS",
+          "relX": 10,
+          "relY": 40,
+          "label": "A"
+        },
+        {
+          "id": "1777172549792k",
+          "type": "NEG",
+          "relX": 30,
+          "relY": 40,
+          "label": "K"
+        }
+      ],
+      "isBeingCharged": false
+    }
+  ],
+  "wires": [
+    {
+      "from": {
+        "comp": {
+          "id": 1777172516512,
+          "type": "RES",
+          "x": 161.91571972376687,
+          "y": 301.85583915090353,
+          "angle": 1.5707963267948966,
+          "val": 470,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 90,
+          "h": 20,
+          "pins": [
+            {
+              "id": "17771725165121",
+              "type": "NEU",
+              "relX": 0,
+              "relY": 10,
+              "label": "1"
+            },
+            {
+              "id": "17771725165122",
+              "type": "NEU",
+              "relX": 90,
+              "relY": 10,
+              "label": "2"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "17771725165121",
+          "type": "NEU",
+          "relX": 0,
+          "relY": 10,
+          "label": "1"
+        }
+      },
+      "to": {
+        "comp": {
+          "id": 1777172549792,
+          "type": "LED",
+          "x": 258.16943876689265,
+          "y": 209.79089563403141,
+          "angle": 0,
+          "val": 20,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 40,
+          "h": 40,
+          "pins": [
+            {
+              "id": "1777172549792a",
+              "type": "POS",
+              "relX": 10,
+              "relY": 40,
+              "label": "A"
+            },
+            {
+              "id": "1777172549792k",
+              "type": "NEG",
+              "relX": 30,
+              "relY": 40,
+              "label": "K"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "1777172549792a",
+          "type": "POS",
+          "relX": 10,
+          "relY": 40,
+          "label": "A"
+        }
+      },
+      "points": [
+        {
+          "x": 207.15854756292012,
+          "y": 250.4591718576503
+        }
+      ]
+    },
+    {
+      "from": {
+        "comp": {
+          "id": 1777172549792,
+          "type": "LED",
+          "x": 258.16943876689265,
+          "y": 209.79089563403141,
+          "angle": 0,
+          "val": 20,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 40,
+          "h": 40,
+          "pins": [
+            {
+              "id": "1777172549792a",
+              "type": "POS",
+              "relX": 10,
+              "relY": 40,
+              "label": "A"
+            },
+            {
+              "id": "1777172549792k",
+              "type": "NEG",
+              "relX": 30,
+              "relY": 40,
+              "label": "K"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "1777172549792k",
+          "type": "NEG",
+          "relX": 30,
+          "relY": 40,
+          "label": "K"
+        }
+      },
+      "to": {
+        "comp": {
+          "id": 1777172512240,
+          "type": "BAT",
+          "x": 230.46449962856877,
+          "y": 477.7212464983942,
+          "angle": 4.71238898038469,
+          "val": 9,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 110,
+          "h": 65,
+          "pins": [
+            {
+              "id": "1777172512240p",
+              "type": "POS",
+              "relX": 110,
+              "relY": 20,
+              "label": "+"
+            },
+            {
+              "id": "1777172512240n",
+              "type": "NEG",
+              "relX": 110,
+              "relY": 45,
+              "label": "-"
+            }
+          ],
+          "isBeingCharged": false,
+          "isShort": false
+        },
+        "pin": {
+          "id": "1777172512240n",
+          "type": "NEG",
+          "relX": 110,
+          "relY": 45,
+          "label": "-"
+        }
+      },
+      "points": [
+        {
+          "x": 303.33969879134656,
+          "y": 249.8832368203543
+        },
+        {
+          "x": 307.9471790897143,
+          "y": 443.9733443890951
+        },
+        {
+          "x": 298.7322184929788,
+          "y": 443.3974093517991
+        }
+      ]
+    },
+    {
+      "from": {
+        "comp": {
+          "id": 1777172512240,
+          "type": "BAT",
+          "x": 230.46449962856877,
+          "y": 477.7212464983942,
+          "angle": 4.71238898038469,
+          "val": 9,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 110,
+          "h": 65,
+          "pins": [
+            {
+              "id": "1777172512240p",
+              "type": "POS",
+              "relX": 110,
+              "relY": 20,
+              "label": "+"
+            },
+            {
+              "id": "1777172512240n",
+              "type": "NEG",
+              "relX": 110,
+              "relY": 45,
+              "label": "-"
+            }
+          ],
+          "isBeingCharged": false,
+          "isShort": false
+        },
+        "pin": {
+          "id": "1777172512240p",
+          "type": "POS",
+          "relX": 110,
+          "relY": 20,
+          "label": "+"
+        }
+      },
+      "to": {
+        "comp": {
+          "id": 1777172526144,
+          "type": "SSW",
+          "x": 182.53131438377608,
+          "y": 394.32508906395753,
+          "angle": 1.5707963267948966,
+          "val": 20,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 50,
+          "h": 40,
+          "pins": [
+            {
+              "id": "17771725261441",
+              "type": "NEU",
+              "relX": 0,
+              "relY": 20,
+              "label": "L"
+            },
+            {
+              "id": "17771725261442",
+              "type": "NEU",
+              "relX": 50,
+              "relY": 20,
+              "label": "R"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "17771725261442",
+          "type": "NEU",
+          "relX": 50,
+          "relY": 20,
+          "label": "R"
+        }
+      },
+      "points": [
+        {
+          "x": 208.31041763751205,
+          "y": 454.91611009771844
+        }
+      ]
+    },
+    {
+      "from": {
+        "comp": {
+          "id": 1777172526144,
+          "type": "SSW",
+          "x": 182.53131438377608,
+          "y": 394.32508906395753,
+          "angle": 1.5707963267948966,
+          "val": 20,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 50,
+          "h": 40,
+          "pins": [
+            {
+              "id": "17771725261441",
+              "type": "NEU",
+              "relX": 0,
+              "relY": 20,
+              "label": "L"
+            },
+            {
+              "id": "17771725261442",
+              "type": "NEU",
+              "relX": 50,
+              "relY": 20,
+              "label": "R"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "17771725261441",
+          "type": "NEU",
+          "relX": 0,
+          "relY": 20,
+          "label": "L"
+        }
+      },
+      "to": {
+        "comp": {
+          "id": 1777172516512,
+          "type": "RES",
+          "x": 161.91571972376687,
+          "y": 301.85583915090353,
+          "angle": 1.5707963267948966,
+          "val": 470,
+          "currentI": 0,
+          "state": false,
+          "isBlown": false,
+          "charge": 0,
+          "w": 90,
+          "h": 20,
+          "pins": [
+            {
+              "id": "17771725165121",
+              "type": "NEU",
+              "relX": 0,
+              "relY": 10,
+              "label": "1"
+            },
+            {
+              "id": "17771725165122",
+              "type": "NEU",
+              "relX": 90,
+              "relY": 10,
+              "label": "2"
+            }
+          ],
+          "isBeingCharged": false
+        },
+        "pin": {
+          "id": "17771725165122",
+          "type": "NEU",
+          "relX": 90,
+          "relY": 10,
+          "label": "2"
+        }
+      },
+      "points": []
+    }
+  ],
+  "zoom": 1.7363069361000014,
+  "offset": {
+    "x": -200.69082300590026,
+    "y": -218.87399730630045
+  }
+}
