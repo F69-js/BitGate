@@ -37,8 +37,28 @@ header {
     z-index: 10;
 }
 
-.logo { font-size: 1.5em; font-weight: 900; letter-spacing: 2px; color: var(--accent-color); }
-.logo span { color: #fff; font-weight: 300; }
+/* ロゴ周りの修正 */
+.logo { 
+    display: flex;         /* 横並びにする */
+    align-items: baseline; /* テキストの底辺を合わせる */
+    gap: 8px;              /* ロゴとバージョンの隙間 */
+    font-size: 1.5em; 
+    font-weight: 900; 
+    letter-spacing: 2px; 
+    color: var(--accent-color); 
+}
+
+.logo a {
+    display: flex;
+    align-items: center;
+}
+
+.logo small {
+    font-size: 0.4em; 
+    opacity: 0.6;
+    color: #fff;           /* バージョン表記を見やすく */
+    white-space: nowrap;
+}
 
 main {
     display: flex;
