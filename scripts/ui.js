@@ -1,3 +1,6 @@
+/**
+ * ui.js - Updated with Rotation (Shift key) and Coordinate Correction
+ */
 var zoom = 1.0;
 var offset = { x: 0, y: 0 };
 let isPanning = false;
@@ -48,11 +51,13 @@ function initUIListeners() {
         // 右クリックでキャンセル
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
 
-        // 1. ピンの判定（配線の開始・結合）
+        // 1. ピンの判定（回転を考慮した座標計算を使用）
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
-                if (Math.hypot(pos.x - (c.x + p.relX), pos.y - (c.y + p.relY)) < 15 / zoom) {
+                // components.jsで定義した getPinPos を使用
+                const pinPos = getPinPos(c, p);
+                if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / zoom) {
                     hitPin = { comp: c, pin: p }; break;
                 }
             }
@@ -91,10 +96,10 @@ function initUIListeners() {
             }
         }
 
-        // 4. 配線自体の選択判定
+        // 4. 配線自体の選択判定（回転後のピン位置を始点・終点にする）
         const hitWire = wires.find(w => {
-            const pStart = { x: w.from.comp.x + w.from.pin.relX, y: w.from.comp.y + w.from.pin.relY };
-            const pEnd = { x: w.to.comp.x + w.to.pin.relX, y: w.to.comp.y + w.to.pin.relY };
+            const pStart = getPinPos(w.from.comp, w.from.pin);
+            const pEnd = getPinPos(w.to.comp, w.to.pin);
             const pts = [pStart, ...w.points, pEnd];
             for (let i = 0; i < pts.length - 1; i++) {
                 if (distToSegment(pos, pts[i], pts[i + 1]) < 10 / zoom) return true;
@@ -104,7 +109,12 @@ function initUIListeners() {
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
         // 5. コンポーネントの判定
-        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
+        const hitC = components.find(c => {
+            // 簡易判定：回転していてもバウンディングボックス内ならヒットとする
+            // より厳密にするには逆回転行列が必要だが、矩形ならこれで十分操作可能
+            return pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h;
+        });
+
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC };
             draggingObj = hitC;
@@ -152,8 +162,22 @@ function initUIListeners() {
         isPanning = false;
     });
 
-    window.addEventListener('keydown', e => { if (e.code === 'Space') isSpacePressed = true; });
-    window.addEventListener('keyup', e => { if (e.code === 'Space') isSpacePressed = false; });
+    // キーボード操作：Shiftキーで回転
+    window.addEventListener('keydown', e => { 
+        if (e.code === 'Space') isSpacePressed = true; 
+        
+        // 部品選択中にShiftキーで90度回転
+        if (e.key === 'Shift' && selectedObj?.type === 'comp') {
+            const c = selectedObj.ref;
+            c.angle = (c.angle || 0) + Math.PI / 2;
+            // 2PIを超えたらリセット（数値の肥大化防止）
+            if (c.angle >= Math.PI * 2) c.angle = 0;
+        }
+    });
+
+    window.addEventListener('keyup', e => { 
+        if (e.code === 'Space') isSpacePressed = false; 
+    });
 
     document.getElementById('typeSelect').addEventListener('change', e => {
         if (selectedObj?.ref.type === 'TR') selectedObj.ref.trType = e.target.value;
@@ -183,7 +207,6 @@ function updateUI() {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             ea.style.visibility = 'visible';
-            // NOT_IC は数値設定が不要なので非表示にするロジック
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
                 vi.style.display = 'inline'; ts.style.display = 'none';
                 tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
@@ -192,9 +215,10 @@ function updateUI() {
                 vi.style.display = 'none'; ts.style.display = 'inline';
                 tl.innerText = 'TYPE'; ts.value = c.trType;
             } else {
-                // NOT_IC や Switch 等は編集エリアを隠すか、ラベルだけ出す
                 ea.style.visibility = (c.type === 'NOT_IC' || c.type === 'DIO') ? 'hidden' : 'visible';
             }
+        } else {
+            ea.style.visibility = 'hidden';
         }
     }
 }
