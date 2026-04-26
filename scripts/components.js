@@ -131,19 +131,31 @@ function drawComponent(ctx, c, isSelected) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.fillRect(dx, dy + (h - 10), w, -fillH);
     } 
-    else if (c.type === 'LED') {
-        ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 50, 50, ${0.4 + Math.min(c.currentI * 40, 0.6)})`;
-        ctx.beginPath();
-        ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
-        ctx.lineTo(dx + w / 2 + 15, dy + 35);
-        ctx.lineTo(dx + w / 2 - 15, dy + 35);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        if (!c.isBlown && c.currentI > 0.001) {
-            ctx.shadowBlur = 15; ctx.shadowColor = "red"; ctx.stroke(); ctx.shadowBlur = 0;
-        }
-    } 
+else if (c.type === 'LED') {
+    const baseColor = c.color || '#ff0000'; // デフォルトは赤
+    // 発光の強さを電流 (currentI) で計算
+    const brightness = 0.4 + Math.min(c.currentI * 40, 0.6);
+    
+    // ボディの色（非点灯時も考慮）
+    ctx.fillStyle = c.isBlown ? '#333' : baseColor;
+    ctx.globalAlpha = brightness; // 透明度で輝度を表現
+    
+    ctx.beginPath();
+    ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
+    ctx.lineTo(dx + w / 2 + 15, dy + 35);
+    ctx.lineTo(dx + w / 2 - 15, dy + 35);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1.0; // リセット
+    ctx.stroke();
+
+    if (!c.isBlown && c.currentI > 0.001) {
+        ctx.shadowBlur = 15; 
+        ctx.shadowColor = baseColor; 
+        ctx.stroke(); 
+        ctx.shadowBlur = 0;
+    }
+}
     else if (c.type === 'TR') {
         ctx.fillStyle = '#333';
         ctx.beginPath();
