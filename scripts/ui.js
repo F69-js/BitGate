@@ -1,5 +1,5 @@
 /**
- * ui.js - Updated with Rotation (Shift key) and Coordinate Correction
+ * ui.js - Updated with Rotation, Shift key, and Dynamic Color Dropdown
  */
 var zoom = 1.0;
 var offset = { x: 0, y: 0 };
@@ -44,18 +44,14 @@ function initUIListeners() {
         dragStartPos = { ...pos };
         lastMousePos = { x: e.clientX, y: e.clientY };
 
-        // スペースキーまたは中ボタンでパン
         if (e.buttons === 4 || (e.buttons === 1 && isSpacePressed)) {
             isPanning = true; return;
         }
-        // 右クリックでキャンセル
         if (e.button === 2) { activeLine = null; selectedObj = null; updateUI(); return; }
 
-        // 1. ピンの判定（回転を考慮した座標計算を使用）
         let hitPin = null;
         for (let c of components) {
             for (let p of c.pins) {
-                // components.jsで定義した getPinPos を使用
                 const pinPos = getPinPos(c, p);
                 if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / zoom) {
                     hitPin = { comp: c, pin: p }; break;
@@ -68,7 +64,6 @@ function initUIListeners() {
             if (!activeLine) {
                 activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
-                // 配線を確定
                 wires.push({
                     from: { comp: activeLine.startComp, pin: activeLine.startPin },
                     to: { comp: hitPin.comp, pin: hitPin.pin },
@@ -79,13 +74,11 @@ function initUIListeners() {
             updateUI(); return;
         }
 
-        // 2. 配線作成中に「何もない場所」をクリックしたなら角を追加
         if (activeLine) {
             activeLine.points.push({ x: pos.x, y: pos.y });
             return;
         }
 
-        // 3. 選択中の配線の「頂点」ドラッグ判定
         if (selectedObj?.type === 'wire') {
             const w = selectedObj.ref;
             for (let i = 0; i < w.points.length; i++) {
@@ -96,7 +89,6 @@ function initUIListeners() {
             }
         }
 
-        // 4. 配線自体の選択判定（回転後のピン位置を始点・終点にする）
         const hitWire = wires.find(w => {
             const pStart = getPinPos(w.from.comp, w.from.pin);
             const pEnd = getPinPos(w.to.comp, w.to.pin);
@@ -108,12 +100,7 @@ function initUIListeners() {
         });
         if (hitWire) { selectedObj = { type: 'wire', ref: hitWire }; updateUI(); return; }
 
-        // 5. コンポーネントの判定
-        const hitC = components.find(c => {
-            // 簡易判定：回転していてもバウンディングボックス内ならヒットとする
-            // より厳密にするには逆回転行列が必要だが、矩形ならこれで十分操作可能
-            return pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h;
-        });
+        const hitC = components.find(c => pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h);
 
         if (hitC) {
             selectedObj = { type: 'comp', ref: hitC };
@@ -150,7 +137,6 @@ function initUIListeners() {
         const pos = getMousePos(e);
         const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
 
-        // クリック動作（トグルスイッチなど）
         if (!isPanning && moveDist < 5 && selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             if (c.type === 'SSW') c.state = !c.state;
@@ -162,15 +148,11 @@ function initUIListeners() {
         isPanning = false;
     });
 
-    // キーボード操作：Shiftキーで回転
     window.addEventListener('keydown', e => { 
         if (e.code === 'Space') isSpacePressed = true; 
-        
-        // 部品選択中にShiftキーで90度回転
         if (e.key === 'Shift' && selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             c.angle = (c.angle || 0) + Math.PI / 2;
-            // 2PIを超えたらリセット（数値の肥大化防止）
             if (c.angle >= Math.PI * 2) c.angle = 0;
         }
     });
@@ -179,8 +161,15 @@ function initUIListeners() {
         if (e.code === 'Space') isSpacePressed = false; 
     });
 
+    // ドロップダウンの変更時の処理
     document.getElementById('typeSelect').addEventListener('change', e => {
-        if (selectedObj?.ref.type === 'TR') selectedObj.ref.trType = e.target.value;
+        if (!selectedObj) return;
+        const c = selectedObj.ref;
+        if (c.type === 'TR') {
+            c.trType = e.target.value;
+        } else if (c.type === 'LED') {
+            c.color = e.target.value;
+        }
     });
 
     document.getElementById('valInput').addEventListener('input', e => {
@@ -207,13 +196,29 @@ function updateUI() {
         if (selectedObj?.type === 'comp') {
             const c = selectedObj.ref;
             ea.style.visibility = 'visible';
+
             if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
                 vi.style.display = 'inline'; ts.style.display = 'none';
                 tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
                 vi.value = c.val;
             } else if (c.type === 'TR') {
                 vi.style.display = 'none'; ts.style.display = 'inline';
-                tl.innerText = 'TYPE'; ts.value = c.trType;
+                tl.innerText = 'TYPE';
+                // innerHTML で TR 用の選択肢を生成
+                ts.innerHTML = `<option value="NPN">NPN</option><option value="PNP">PNP</option>`;
+                ts.value = c.trType || "NPN";
+            } else if (c.type === 'LED') {
+                vi.style.display = 'none'; ts.style.display = 'inline';
+                tl.innerText = 'COLOR';
+                // innerHTML で LED 用の色選択肢を生成
+                ts.innerHTML = `
+                    <option value="#ff3232">RED</option>
+                    <option value="#32ff32">GREEN</option>
+                    <option value="#3232ff">BLUE</option>
+                    <option value="#ffff32">YELLOW</option>
+                    <option value="#ffffff">WHITE</option>
+                `;
+                ts.value = c.color || "#ff3232";
             } else {
                 ea.style.visibility = (c.type === 'NOT_IC' || c.type === 'DIO') ? 'hidden' : 'visible';
             }
