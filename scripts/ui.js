@@ -1,8 +1,8 @@
 /**
- * ui.js - 配線作成・操作ロジック完全版
+ * ui.js - User Interaction Logic
  */
 import { state } from './state.js';
-import { getPinPos } from './components.js';
+import { getPinPos, updateUI as compUpdateUI } from './components.js';
 
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
@@ -58,26 +58,22 @@ export function initUIListeners() {
             updateUI(); return; 
         }
 
-        // 1. ピンのクリック判定
+        // 1. ピンのクリック判定 (getPinPosを使用して回転後座標を計算)
         let hitPin = null;
         for (let c of state.components) {
-           // ui.js の 74行目付近
-for (let p of c.pins) {
-    const pinPos = getPinPos(c, p); // components.js の新 getPinPos を呼ぶ
-    // 判定距離を少し調整 (15 / state.zoom)
-    if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / state.zoom) {
-        hitPin = { comp: c, pin: p }; break;
-    }
-}
+            for (let p of c.pins) {
+                const pinPos = getPinPos(c, p);
+                if (Math.hypot(pos.x - pinPos.x, pos.y - pinPos.y) < 15 / state.zoom) {
+                    hitPin = { comp: c, pin: p }; break;
+                }
+            }
             if (hitPin) break;
         }
 
         if (hitPin) {
             if (!state.activeLine) {
-                // 配線開始
                 state.activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
-                // 配線完了
                 state.wires.push({
                     from: { comp: state.activeLine.startComp, pin: state.activeLine.startPin },
                     to: { comp: hitPin.comp, pin: hitPin.pin },
@@ -88,13 +84,12 @@ for (let p of c.pins) {
             updateUI(); return;
         }
 
-        // 2. 配線作成中の折れ点追加
         if (state.activeLine) {
             state.activeLine.points.push({ x: pos.x, y: pos.y });
             return;
         }
 
-        // 3. 折れ点ドラッグ判定
+        // 2. 既存配線の折れ点ドラッグ
         if (state.selectedObj?.type === 'wire') {
             const w = state.selectedObj.ref;
             for (let i = 0; i < w.points.length; i++) {
@@ -105,7 +100,7 @@ for (let p of c.pins) {
             }
         }
 
-        // 4. 配線本体の判定
+        // 3. 配線本体の選択
         const hitWire = state.wires.find(w => {
             const pStart = getPinPos(w.from.comp, w.from.pin);
             const pEnd = getPinPos(w.to.comp, w.to.pin);
@@ -120,8 +115,8 @@ for (let p of c.pins) {
             updateUI(); return; 
         }
 
-        // 5. パーツ判定
-        const hitC = state.components.find(c => 
+        // 4. コンポーネントの選択とドラッグ
+        const hitC = [...state.components].reverse().find(c => 
             pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h
         );
 
@@ -232,7 +227,7 @@ export function updateUI() {
             ts.innerHTML = `<option value="#ff3232">RED</option><option value="#32ff32">GREEN</option><option value="#3232ff">BLUE</option><option value="#ffff32">YELLOW</option><option value="#ffffff">WHITE</option>`;
             ts.value = c.color || "#ff3232";
         } else {
-            ea.style.visibility = ['NOT_IC', 'DIO'].includes(c.type) ? 'hidden' : 'visible';
+            ea.style.visibility = (c.type === 'NOT_IC' || c.type === 'DIO') ? 'hidden' : 'visible';
         }
     } else {
         ea.style.visibility = 'hidden';
@@ -250,15 +245,4 @@ export function deleteSelected() {
     }
     state.selectedObj = null; 
     updateUI();
-}
-
-export function showErrorDialog(title, msg, detail, isFatal = false) {
-    const old = document.getElementById('error-modal');
-    if (old) old.remove();
-    const modal = document.createElement('div');
-    modal.id = 'error-modal';
-    modal.style = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2b2b2b; color: #eee; border: 1px solid #ff4444; padding: 20px; z-index: 9999; font-family: sans-serif; width: 400px; box-shadow: 0 0 20px rgba(0,0,0,0.7); border-radius: 4px;`;
-    modal.innerHTML = `<h3 style="margin:0 0 10px; color:#ff4444; font-size:1.1em;">${title}</h3><p style="font-size:0.9em; line-height:1.4;">${msg.replace(/\n/g, '<br>')}</p><div style="background:#1a1a1a; padding:10px; font-family:monospace; font-size:0.8em; margin:15px 0; border:1px solid #444; max-height:100px; overflow-y:auto; white-space:pre-wrap;">エラー詳細:<br>${detail}</div><div style="text-align:right; gap:10px; display:flex; justify-content:flex-end;">${isFatal ? '<a href="#" style="color:#2ecc71; text-decoration:none; align-self:center; font-size:0.8em; margin-right:auto;">問題を報告</a>' : ''}<button id="error-ok-btn" style="background:#444; color:#fff; border:none; padding:8px 20px; cursor:pointer; border-radius:2px;">${isFatal ? '再読み込み' : 'OK'}</button></div>`;
-    document.body.appendChild(modal);
-    document.getElementById('error-ok-btn').onclick = () => isFatal ? location.reload() : modal.remove();
 }
