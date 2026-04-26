@@ -1,6 +1,5 @@
 /**
- * ui.js - Updated with Rotation, Shift key, and Dynamic Color Dropdown
- * ES Module Version
+ * ui.js - 配線作成・操作ロジック完全版
  */
 import { state } from './state.js';
 import { getPinPos } from './components.js';
@@ -8,15 +7,12 @@ import { getPinPos } from './components.js';
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
 let dragStartPos = { x: 0, y: 0 };
-let dragOffset = { x: 0, y: 0 }; // 追加
+let dragOffset = { x: 0, y: 0 };
 let isSpacePressed = false;
 let draggingNode = null; 
 
 const canvas = document.getElementById('cvs');
 
-/**
- * キャンバス上の座標を論理座標（ズーム・オフセット考慮）に変換
- */
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
     return {
@@ -25,9 +21,6 @@ function getMousePos(e) {
     };
 }
 
-/**
- * 点と線分の距離を計算（配線のクリック判定用）
- */
 function distToSegment(p, v, w) {
     const l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
     if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
@@ -38,7 +31,6 @@ function distToSegment(p, v, w) {
 export function initUIListeners() {
     window.addEventListener('contextmenu', e => e.preventDefault(), false);
 
-    // ズーム操作
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -46,7 +38,6 @@ export function initUIListeners() {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        
         state.offset.x = mouseX - (mouseX - state.offset.x) * (nextZoom / state.zoom);
         state.offset.y = mouseY - (mouseY - state.offset.y) * (nextZoom / state.zoom);
         state.zoom = nextZoom;
@@ -57,19 +48,17 @@ export function initUIListeners() {
         dragStartPos = { ...pos };
         lastMousePos = { x: e.clientX, y: e.clientY };
 
-        // パン操作 (ホイールクリック or スペース+左クリック)
         if (e.buttons === 4 || (e.buttons === 1 && isSpacePressed)) {
             isPanning = true; return;
         }
         
-        // 右クリックでキャンセル
         if (e.button === 2) { 
             state.activeLine = null; 
             state.selectedObj = null; 
             updateUI(); return; 
         }
 
-        // 1. ピンのクリック判定（配線開始/結合）
+        // 1. ピンのクリック判定
         let hitPin = null;
         for (let c of state.components) {
             for (let p of c.pins) {
@@ -83,8 +72,10 @@ export function initUIListeners() {
 
         if (hitPin) {
             if (!state.activeLine) {
+                // 配線開始
                 state.activeLine = { startComp: hitPin.comp, startPin: hitPin.pin, points: [] };
             } else {
+                // 配線完了
                 state.wires.push({
                     from: { comp: state.activeLine.startComp, pin: state.activeLine.startPin },
                     to: { comp: hitPin.comp, pin: hitPin.pin },
@@ -101,7 +92,7 @@ export function initUIListeners() {
             return;
         }
 
-        // 3. 既存配線の折れ点ドラッグ判定
+        // 3. 折れ点ドラッグ判定
         if (state.selectedObj?.type === 'wire') {
             const w = state.selectedObj.ref;
             for (let i = 0; i < w.points.length; i++) {
@@ -112,7 +103,7 @@ export function initUIListeners() {
             }
         }
 
-        // 4. 配線自体のクリック判定
+        // 4. 配線本体の判定
         const hitWire = state.wires.find(w => {
             const pStart = getPinPos(w.from.comp, w.from.pin);
             const pEnd = getPinPos(w.to.comp, w.to.pin);
@@ -127,7 +118,7 @@ export function initUIListeners() {
             updateUI(); return; 
         }
 
-        // 5. コンポーネントのクリック判定
+        // 5. パーツ判定
         const hitC = state.components.find(c => 
             pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h
         );
@@ -145,7 +136,6 @@ export function initUIListeners() {
 
     window.addEventListener('mousemove', e => {
         const mouseRaw = { x: e.clientX, y: e.clientY };
-        
         if (isPanning) {
             state.offset.x += mouseRaw.x - lastMousePos.x;
             state.offset.y += mouseRaw.y - lastMousePos.y;
@@ -168,15 +158,12 @@ export function initUIListeners() {
         const pos = getMousePos(e);
         const moveDist = Math.hypot(pos.x - dragStartPos.x, pos.y - dragStartPos.y);
 
-        // クリック（移動なし）でのトグル動作
         if (!isPanning && moveDist < 5 && state.selectedObj?.type === 'comp') {
             const c = state.selectedObj.ref;
             if (c.type === 'SSW') c.state = !c.state;
         }
 
-        // タクトスイッチのOFF
         state.components.forEach(c => { if (c.type === 'PSW') c.state = false; });
-        
         state.draggingObj = null;
         draggingNode = null;
         isPanning = false;
@@ -196,33 +183,23 @@ export function initUIListeners() {
         if (e.code === 'Space') isSpacePressed = false; 
     });
 
-    // ドロップダウン変更
-    const typeSelect = document.getElementById('typeSelect');
-    if (typeSelect) {
-        typeSelect.addEventListener('change', e => {
-            if (!state.selectedObj || state.selectedObj.type !== 'comp') return;
+    document.getElementById('typeSelect')?.addEventListener('change', e => {
+        if (state.selectedObj?.type === 'comp') {
             const c = state.selectedObj.ref;
             if (c.type === 'TR') c.trType = e.target.value;
             else if (c.type === 'LED') c.color = e.target.value;
-        });
-    }
+        }
+    });
 
-    // 値入力
-    const valInput = document.getElementById('valInput');
-    if (valInput) {
-        valInput.addEventListener('input', e => {
-            if (state.selectedObj?.type === 'comp') {
-                const c = state.selectedObj.ref;
-                if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
-                    c.val = Number(e.target.value);
-                    if (c.type === 'CAP') c.charge = 0;
-                }
+    document.getElementById('valInput')?.addEventListener('input', e => {
+        if (state.selectedObj?.type === 'comp') {
+            const c = state.selectedObj.ref;
+            if (['BAT', 'RES', 'CAP'].includes(c.type)) {
+                c.val = Number(e.target.value);
+                if (c.type === 'CAP') c.charge = 0;
             }
-        });
-    }
-
-    const delBtn = document.getElementById('delBtn');
-    if (delBtn) delBtn.onclick = deleteSelected;
+        }
+    });
 }
 
 export function updateUI() {
@@ -233,38 +210,30 @@ export function updateUI() {
     const delBtn = document.getElementById('delBtn');
 
     if (delBtn) delBtn.disabled = !state.selectedObj;
+    if (!ea) return;
 
-    if (ea) {
-        if (state.selectedObj?.type === 'comp') {
-            const c = state.selectedObj.ref;
-            ea.style.visibility = 'visible';
-
-            if (c.type === 'BAT' || c.type === 'RES' || c.type === 'CAP') {
-                vi.style.display = 'inline'; ts.style.display = 'none';
-                tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
-                vi.value = c.val;
-            } else if (c.type === 'TR') {
-                vi.style.display = 'none'; ts.style.display = 'inline';
-                tl.innerText = 'TYPE';
-                ts.innerHTML = `<option value="NPN">NPN</option><option value="PNP">PNP</option>`;
-                ts.value = c.trType || "NPN";
-            } else if (c.type === 'LED') {
-                vi.style.display = 'none'; ts.style.display = 'inline';
-                tl.innerText = 'COLOR';
-                ts.innerHTML = `
-                    <option value="#ff3232">RED</option>
-                    <option value="#32ff32">GREEN</option>
-                    <option value="#3232ff">BLUE</option>
-                    <option value="#ffff32">YELLOW</option>
-                    <option value="#ffffff">WHITE</option>
-                `;
-                ts.value = c.color || "#ff3232";
-            } else {
-                ea.style.visibility = (c.type === 'NOT_IC' || c.type === 'DIO') ? 'hidden' : 'visible';
-            }
+    if (state.selectedObj?.type === 'comp') {
+        const c = state.selectedObj.ref;
+        ea.style.visibility = 'visible';
+        if (['BAT', 'RES', 'CAP'].includes(c.type)) {
+            vi.style.display = 'inline'; ts.style.display = 'none';
+            tl.innerText = c.type === 'BAT' ? 'PWR(V)' : (c.type === 'RES' ? 'RES(Ω)' : 'CAP(μF)');
+            vi.value = c.val;
+        } else if (c.type === 'TR') {
+            vi.style.display = 'none'; ts.style.display = 'inline';
+            tl.innerText = 'TYPE';
+            ts.innerHTML = `<option value="NPN">NPN</option><option value="PNP">PNP</option>`;
+            ts.value = c.trType || "NPN";
+        } else if (c.type === 'LED') {
+            vi.style.display = 'none'; ts.style.display = 'inline';
+            tl.innerText = 'COLOR';
+            ts.innerHTML = `<option value="#ff3232">RED</option><option value="#32ff32">GREEN</option><option value="#3232ff">BLUE</option><option value="#ffff32">YELLOW</option><option value="#ffffff">WHITE</option>`;
+            ts.value = c.color || "#ff3232";
         } else {
-            ea.style.visibility = 'hidden';
+            ea.style.visibility = ['NOT_IC', 'DIO'].includes(c.type) ? 'hidden' : 'visible';
         }
+    } else {
+        ea.style.visibility = 'hidden';
     }
 }
 
@@ -281,40 +250,13 @@ export function deleteSelected() {
     updateUI();
 }
 
-/**
- * エラーダイアログの表示
- */
 export function showErrorDialog(title, msg, detail, isFatal = false) {
     const old = document.getElementById('error-modal');
     if (old) old.remove();
-
     const modal = document.createElement('div');
     modal.id = 'error-modal';
-    modal.style = `
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: #2b2b2b; color: #eee; border: 1px solid #ff4444;
-        padding: 20px; z-index: 9999; font-family: sans-serif; width: 400px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.7); border-radius: 4px;
-    `;
-
-    modal.innerHTML = `
-        <h3 style="margin:0 0 10px; color:#ff4444; font-size:1.1em;">${title}</h3>
-        <p style="font-size:0.9em; line-height:1.4;">${msg.replace(/\n/g, '<br>')}</p>
-        <div style="background:#1a1a1a; padding:10px; font-family:monospace; font-size:0.8em; margin:15px 0; border:1px solid #444; max-height:100px; overflow-y:auto; white-space:pre-wrap;">
-            エラー詳細:<br>${detail}
-        </div>
-        <div style="text-align:right; gap:10px; display:flex; justify-content:flex-end;">
-            ${isFatal ? '<a href="https://github.com/F69-js/BitGate/issues" target="_blank" style="color:#2ecc71; text-decoration:none; align-self:center; font-size:0.8em; margin-right:auto;">問題を報告</a>' : ''}
-            <button id="error-ok-btn" style="background:#444; color:#fff; border:none; padding:8px 20px; cursor:pointer; border-radius:2px;">
-                ${isFatal ? '再読み込み' : 'OK'}
-            </button>
-        </div>
-    `;
-
+    modal.style = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2b2b2b; color: #eee; border: 1px solid #ff4444; padding: 20px; z-index: 9999; font-family: sans-serif; width: 400px; box-shadow: 0 0 20px rgba(0,0,0,0.7); border-radius: 4px;`;
+    modal.innerHTML = `<h3 style="margin:0 0 10px; color:#ff4444; font-size:1.1em;">${title}</h3><p style="font-size:0.9em; line-height:1.4;">${msg.replace(/\n/g, '<br>')}</p><div style="background:#1a1a1a; padding:10px; font-family:monospace; font-size:0.8em; margin:15px 0; border:1px solid #444; max-height:100px; overflow-y:auto; white-space:pre-wrap;">エラー詳細:<br>${detail}</div><div style="text-align:right; gap:10px; display:flex; justify-content:flex-end;">${isFatal ? '<a href="#" style="color:#2ecc71; text-decoration:none; align-self:center; font-size:0.8em; margin-right:auto;">問題を報告</a>' : ''}<button id="error-ok-btn" style="background:#444; color:#fff; border:none; padding:8px 20px; cursor:pointer; border-radius:2px;">${isFatal ? '再読み込み' : 'OK'}</button></div>`;
     document.body.appendChild(modal);
-
-    document.getElementById('error-ok-btn').onclick = () => {
-        if (isFatal) location.reload();
-        else modal.remove();
-    };
+    document.getElementById('error-ok-btn').onclick = () => isFatal ? location.reload() : modal.remove();
 }
