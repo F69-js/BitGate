@@ -61,13 +61,21 @@ function updateSimulation() {
         processPowerSource(bat, posP, negP, Number(bat.val), true);
     });
 
-    // 2. 次にコンデンサの放電を計算（電池からの充電がない場合のみ）
-    capacitors.forEach(cap => {
-        if (!cap.isBeingCharged && cap.charge > 0.01) {
-            // コンデンサ自身を電源として放電パスを回す
-            processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
-        }
-    });
+// 2. コンデンサの放電を計算
+capacitors.forEach(cap => {
+    // 修正：充電中でない、かつ、ある程度の電荷がある場合に放電
+    // currentIがほぼ0、または外部電源からの供給がない場合に放電パスを回す
+    if (!cap.isBeingCharged && cap.charge > 0.001) {
+        // コンデンサ自身を電源として放電パスを回す
+        processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
+        
+        // 自然放電（漏れ電流）も少し強めに設定して確実に減るようにする
+        cap.charge *= 0.98; 
+    }
+    
+    // 電荷が極小になったら完全に0にする（浮遊電荷防止）
+    if (cap.charge < 0.001) cap.charge = 0;
+});
 
     // 3. IC(74HC04 NOT) のロジック演算
     const ics = components.filter(c => c.type === 'NOT_IC');
@@ -182,9 +190,13 @@ function processPowerSource(source, startPin, endPin, voltage, isExternalBat) {
             }
         });
 
-        if (!isExternalBat) {
-            source.charge = Math.max(0, source.charge - (pAmp * dt) / (Math.max(1, source.val) * capScale));
-        }
+        // processPowerSource 関数の最後の方
+if (!isExternalBat) {
+    // 放電：source（コンデンサ）の電荷を消費する
+    // 消費量を電流(pAmp)に比例させて明確に減らす
+    const dischargeAmount = (pAmp * dt) / (Math.max(0.1, source.val) * capScale * 50);
+    source.charge = Math.max(0, source.charge - dischargeAmount);
+}
     });
 }
 
