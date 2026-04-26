@@ -1,5 +1,5 @@
 /**
- * state.js - グローバルステートの定義
+ * state.js - グローバルステートの完全定義
  */
 export const state = {
     components: [],
@@ -7,8 +7,8 @@ export const state = {
     zoom: 1.0,
     offset: { x: 0, y: 0 },
     isSimulating: false,
-    selectedObj: null,
+    selectedObj: null, // {type: 'comp'|'wire', ref: object}
     draggingObj: null,
-    activeLine: null,
+    activeLine: null,  // 配線作成中：{startComp, startPin, points:[]}
     mouse: { x: 0, y: 0 }
 };
