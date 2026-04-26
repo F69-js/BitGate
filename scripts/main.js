@@ -39,6 +39,30 @@ function resizeCanvas() {
 }
 
 /**
+ * 背景グリッド
+ */
+function drawGrid() {
+    const gridStep = 50;
+    const left = -state.offset.x / state.zoom;
+    const top = -state.offset.y / state.zoom;
+    const right = (canvas.width - state.offset.x) / state.zoom;
+    const bottom = (canvas.height - state.offset.y) / state.zoom;
+    
+    ctx.save();
+    ctx.strokeStyle = '#f1f1f1'; 
+    ctx.lineWidth = 1 / state.zoom;
+    ctx.beginPath();
+    for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
+        ctx.moveTo(i, top); ctx.lineTo(i, bottom);
+    }
+    for(let i = Math.floor(top/gridStep)*gridStep; i < bottom; i += gridStep) {
+        ctx.moveTo(left, i); ctx.lineTo(right, i);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+/**
  * メインループ
  */
 function draw() {
@@ -74,7 +98,7 @@ function draw() {
         ctx.beginPath(); 
         const isSelected = (state.selectedObj?.type === 'wire' && state.selectedObj.ref === w);
         ctx.lineWidth = isSelected ? 5 / state.zoom : 3 / state.zoom;
-        // 電流が流れている（0.01A以上）ときは赤、それ以外は黒
+        // 電流が流れているときは赤
         ctx.strokeStyle = isSelected ? '#2ecc71' : (w.from.comp.currentI > 0.01 ? '#e74c3c' : '#333');
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
@@ -89,7 +113,6 @@ function draw() {
     // 5. 配線作成中のプレビュー描画
     if (state.activeLine) {
         const pStart = getPinPos(state.activeLine.startComp, state.activeLine.startPin);
-        // 折れ点がある場合はそれらを経由し、最後にマウス位置へ
         const pts = [pStart, ...state.activeLine.points, state.mouse];
         
         ctx.save();
@@ -115,39 +138,17 @@ function draw() {
     requestAnimationFrame(draw);
 }
 
-/**
- * 背景グリッド
- */
-function drawGrid() {
-    const gridStep = 50;
-    const left = -state.offset.x / state.zoom;
-    const top = -state.offset.y / state.zoom;
-    const right = (canvas.width - state.offset.x) / state.zoom;
-    const bottom = (canvas.height - state.offset.y) / state.zoom;
-    
-    ctx.strokeStyle = '#f1f1f1'; 
-    ctx.lineWidth = 1 / state.zoom;
-    ctx.beginPath();
-    for(let i = Math.floor(left/gridStep)*gridStep; i < right; i += gridStep) {
-        ctx.moveTo(i, top); ctx.lineTo(i, bottom);
-    }
-    for(let i = Math.floor(top/gridStep)*gridStep; i < bottom; i += gridStep) {
-        ctx.moveTo(left, i); ctx.lineTo(right, i);
-    }
-    ctx.stroke();
-}
-
 // --- 初期化とグローバル公開 ---
 
 window.addEventListener('load', () => {
     resizeCanvas();
     initUIListeners();
     updateUI();
+    requestAnimationFrame(draw);
 });
 
 window.addEventListener('resize', resizeCanvas);
 
-// UIボタンのイベント登録
 document.getElementById('startBtn')?.addEventListener('click', () => {
     state.isSimulating = !state.isSimulating;
     const btn = document.getElementById('startBtn');
@@ -157,6 +158,5 @@ document.getElementById('startBtn')?.addEventListener('click', () => {
 
 document.getElementById('delBtn')?.addEventListener('click', deleteSelected);
 
-// HTML（onclick）から呼べるようにwindowに公開
 window.addComponent = addComponent;
 window.deleteSelected = deleteSelected;
