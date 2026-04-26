@@ -1,5 +1,5 @@
 /**
- * main.js - Worker Integration
+ * main.js - 修正版
  */
 
 let physicsWorker = new Worker('scripts/worker.js');
@@ -9,7 +9,6 @@ let isRunning = false;
 physicsWorker.onmessage = function(e) {
     if (e.data.type === 'RESULT') {
         const updated = e.data.components;
-        // メインスレッドのコンポーネントに計算結果（電流・電荷）を同期
         updated.forEach(upd => {
             const target = components.find(c => c.id === upd.id);
             if (target) {
@@ -20,10 +19,9 @@ physicsWorker.onmessage = function(e) {
     }
 };
 
-// シミュレーションループ
+// メインループ
 function loop() {
     if (isRunning) {
-        // Workerに計算を依頼（現在の回路データを同期してからTICK）
         physicsWorker.postMessage({
             type: 'SYNC',
             data: { components, wires }
@@ -31,16 +29,25 @@ function loop() {
         physicsWorker.postMessage({ type: 'TICK' });
     }
     
-    draw(); // 描画は常にメインスレッドで実行（サクサク動く）
+    // draw() が ui.js 等で定義されていることを確認
+    // もし ui.js 内で canvas 描画関数を別名にしている場合はここを書き換えてください
+    if (typeof draw === 'function') {
+        draw(); 
+    } else {
+        // デバッグ用：drawが見つからない場合の警告
+        console.warn("draw function is not defined. Checking ui.js...");
+    }
+    
     requestAnimationFrame(loop);
 }
 
-// RUNボタンのイベント
-document.getElementById('startBtn').onclick = () => {
+// 起動！
+loop();
+
+// イベントリスナーは DOMContentLoaded の後か、スクリプト末尾で確実に
+document.getElementById('startBtn').addEventListener('click', () => {
     isRunning = !isRunning;
     const btn = document.getElementById('startBtn');
     btn.classList.toggle('active', isRunning);
     btn.innerText = isRunning ? "STOP SYSTEM" : "RUN SYSTEM";
-};
-
-loop();
+});
