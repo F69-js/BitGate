@@ -4,6 +4,8 @@
 import { state } from './state.js';
 import { initUIListeners, updateUI, deleteSelected } from './ui.js';
 import { drawComponent, getPinPos, addComponent } from './components.js';
+import { loadCircuit } from './load.js';
+import { saveCircuit } from './save.js';
 
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
