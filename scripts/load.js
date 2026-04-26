@@ -1,8 +1,10 @@
 /**
  * load.js - File Loading Logic
  */
+import { state } from './state.js';
+import { updateUI } from './ui.js';
 
-async function loadCircuit() {
+export async function loadCircuit() {
     // 1. Direct File System Access API
     if ('showOpenFilePicker' in window) {
         try {
@@ -28,6 +30,7 @@ async function loadCircuit() {
     input.accept = '.btg';
     input.onchange = e => {
         const file = e.target.files[0];
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = f => applyData(f.target.result);
         reader.readAsText(file);
@@ -39,34 +42,38 @@ function applyData(jsonText) {
     try {
         const data = JSON.parse(jsonText);
         
-        // 1. まずコンポーネントを復元
-        components = data.components || [];
+        // 1. コンポーネントの復元
+        state.components = data.components || [];
         
         // 2. 配線の復元と再紐付け
-        // JSON化で失われた「どの部品オブジェクトか」という参照をIDで検索して繋ぎ直す
-        wires = (data.wires || []).map(w => {
-            const fromComp = components.find(c => c.id === w.from.comp.id);
-            const toComp = components.find(c => c.id === w.to.comp.id);
+        // JSONでは参照が切れるため、IDをもとに state.components 内のオブジェクトを指すように再構築
+        state.wires = (data.wires || []).map(w => {
+            const fromComp = state.components.find(c => c.id === w.from.comp.id);
+            const toComp = state.components.find(c => c.id === w.to.comp.id);
             
-            if (fromComp && toComp) {
+            // ピン自体の参照も再構築（ID一致を確認）
+            const fromPin = fromComp?.pins.find(p => p.id === w.from.pin.id);
+            const toPin = toComp?.pins.find(p => p.id === w.to.pin.id);
+            
+            if (fromComp && toComp && fromPin && toPin) {
                 return {
                     ...w,
-                    from: { ...w.from, comp: fromComp },
-                    to: { ...w.to, comp: toComp }
+                    from: { comp: fromComp, pin: fromPin },
+                    to: { comp: toComp, pin: toPin }
                 };
             }
-            return null; // 紐付け失敗した配線は破棄
+            return null;
         }).filter(w => w !== null);
 
-        // 3. 画面表示の復元
-        zoom = data.zoom || 1.0;
-        offset = data.offset || { x: 0, y: 0 };
+        // 3. 表示設定の復元
+        state.zoom = data.zoom || 1.0;
+        state.offset = data.offset || { x: 0, y: 0 };
+        state.selectedObj = null;
         
-        selectedObj = null;
-        if (typeof updateUI === 'function') updateUI();
-        console.log("Circuit re-linked and loaded successfully.");
+        updateUI();
+        console.log("Circuit loaded successfully.");
     } catch (err) {
-        alert("BTGファイルの読み込みに失敗しました。");
+        alert("BTGファイルの読み込みに失敗しました。データが破損しているか形式が違います。");
         console.error(err);
     }
 }
