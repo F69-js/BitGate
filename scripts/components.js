@@ -139,9 +139,10 @@ function drawComponent(ctx, c, isSelected) {
         ctx.font = "bold 10px Arial";
         if (c.isActive) { // あるいは通電状態を判定する変数
            ctx.fillStyle = '#2ecc71'; // NASAっぽいネオングリーン
-           ctx.fillText("74HC04(NOT):Active", x + 10, y - 10); // ICの上に表示
+           ctx.fillText("74HC04(NOT):Active",x + 40, y + h / 2 + 5); // ICの上に表示
+        }else{
+           ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
         }
-        ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
     } 
     else if (c.type === 'BAT') {
         // 電池
