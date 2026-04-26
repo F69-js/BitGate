@@ -2,7 +2,7 @@
  * ui.js - User Interaction Logic
  */
 import { state } from './state.js';
-import { getPinPos, updateUI as compUpdateUI } from './components.js';
+import { getPinPos } from './components.js';
 
 let isPanning = false;
 let lastMousePos = { x: 0, y: 0 };
@@ -58,7 +58,7 @@ export function initUIListeners() {
             updateUI(); return; 
         }
 
-        // 1. ピンのクリック判定 (getPinPosを使用して回転後座標を計算)
+        // 1. ピンのクリック判定
         let hitPin = null;
         for (let c of state.components) {
             for (let p of c.pins) {
@@ -89,7 +89,7 @@ export function initUIListeners() {
             return;
         }
 
-        // 2. 既存配線の折れ点ドラッグ
+        // 2. 折れ点ドラッグ
         if (state.selectedObj?.type === 'wire') {
             const w = state.selectedObj.ref;
             for (let i = 0; i < w.points.length; i++) {
@@ -100,7 +100,7 @@ export function initUIListeners() {
             }
         }
 
-        // 3. 配線本体の選択
+        // 3. 配線選択
         const hitWire = state.wires.find(w => {
             const pStart = getPinPos(w.from.comp, w.from.pin);
             const pEnd = getPinPos(w.to.comp, w.to.pin);
@@ -115,7 +115,7 @@ export function initUIListeners() {
             updateUI(); return; 
         }
 
-        // 4. コンポーネントの選択とドラッグ
+        // 4. パーツ選択
         const hitC = [...state.components].reverse().find(c => 
             pos.x > c.x && pos.x < c.x + c.w && pos.y > c.y && pos.y < c.y + c.h
         );
