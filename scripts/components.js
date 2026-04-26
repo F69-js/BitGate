@@ -238,6 +238,13 @@ export function addComponent(type) {
     } else if (type === 'DIO') {
         obj.w = 60; obj.h = 20;
         obj.pins = [{ id: id+'a', type: 'POS', relX: 0, relY: 10, label: 'A' }, { id: id+'k', type: 'NEG', relX: 60, relY: 10, label: 'K' }];
+    } else if (type === 'CAP') {
+        obj.w = 30; obj.h = 40;
+        obj.val = 1000; // 1000uF
+        obj.pins = [
+            { id: id + 'p1', type: 'NEU', relX: 15, relY: 0, label: '1' }, // 上側
+            { id: id + 'p2', type: 'NEU', relX: 15, relY: 40, label: '2' } // 下側
+        ];
     } else if (type === 'NOT_IC') {
         obj.w = 160; obj.h = 60;
         obj.pins = [
