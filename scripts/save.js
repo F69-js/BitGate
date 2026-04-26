@@ -16,10 +16,10 @@ async function saveCircuit() {
     if ('showSaveFilePicker' in window) {
         try {
             const handle = await window.showSaveFilePicker({
-                suggestedName: 'circuit.json',
+                suggestedName: 'circuit.btg',
                 types: [{
                     description: 'BitGate Circuit File',
-                    accept: { 'application/json': ['.json'] },
+                    accept: { 'application/octet-stream': ['.btg'] }, 
                 }],
             });
             const writable = await handle.createWritable();
@@ -38,7 +38,7 @@ async function saveCircuit() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `bitgate_${Date.now()}.json`;
+    a.download = `bitgate_${Date.now()}.btg`;
     a.click();
     URL.revokeObjectURL(url);
 }
