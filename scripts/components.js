@@ -1,9 +1,27 @@
+/**
+ * components.js - Rotation Supported Version
+ */
 const COLOR_MAP = ["#000", "#8B4513", "#F00", "#FF8C00", "#FF0", "#0F0", "#00F", "#800080", "#808080", "#FFF", "#D4AF37", "#C0C0C0"];
+
+// 回転後のピンの絶対座標を計算するヘルパー関数
+function getPinPos(c, p) {
+    const angle = c.angle || 0;
+    // 部品中心からの相対座標
+    const rx = p.relX - c.w / 2;
+    const ry = p.relY - c.h / 2;
+    // 回転行列による計算
+    const nx = rx * Math.cos(angle) - ry * Math.sin(angle);
+    const ny = rx * Math.sin(angle) + ry * Math.cos(angle);
+    return {
+        x: c.x + c.w / 2 + nx,
+        y: c.y + c.h / 2 + ny
+    };
+}
 
 function addComponent(type) {
     const id = Date.now();
     const obj = { 
-        id, type, x: 200, y: 200, 
+        id, type, x: 200, y: 200, angle: 0, // angleを追加
         val: (type === 'BAT' ? 9 : type === 'RES' ? 1000 : type === 'CAP' ? 1000 : type === 'DIO' ? 0.7 : 20), 
         currentI: 0, state: false, isBlown: false, charge: 0 
     };
@@ -45,31 +63,44 @@ function addComponent(type) {
             { id: id+'b', type: 'B', relX: 25, relY: 50, label: 'B' },
             { id: id+'e', type: 'E', relX: 40, relY: 50, label: 'E' }
         ];
-    } else if (type === 'CAP') {
-        obj.w = 30; obj.h = 45;
-        obj.pins = [{ id: id+'1', type: 'NEU', relX: 15, relY: 0, label: '+' }, { id: id+'2', type: 'NEU', relX: 15, relY: 45, label: '-' }];
-    } else if (type === 'PSW' || type === 'SSW') {
+    } else if (type === 'PSW') {
         obj.w = 50; obj.h = 40;
         obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
+    } else if (type === 'SSW') {
+        obj.w = 50; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: 'L' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: 'R' }];
+    } else {
+        obj.w = 50; obj.h = 40;
+        obj.pins = [{ id: id+'1', type: 'NEU', relX: 0, relY: 20, label: '1' }, { id: id+'2', type: 'NEU', relX: 50, relY: 20, label: '2' }];
     }
     components.push(obj);
 }
 
 function drawComponent(ctx, c, isSelected) {
-    const { x, y, w, h } = c;
+    const { x, y, w, h, angle } = c;
+    
+    ctx.save();
+    // 回転の中心を部品の中央に移動
+    ctx.translate(x + w / 2, y + h / 2);
+    ctx.rotate(angle || 0);
+    
+    // 以降、(0,0)を部品中心とした相対座標で描画
+    const dx = -w / 2;
+    const dy = -h / 2;
+
     ctx.strokeStyle = isSelected ? '#3498db' : '#222';
     ctx.lineWidth = 2;
 
     if (c.type === 'RES') {
         ctx.fillStyle = '#e6ccb3';
         ctx.beginPath();
-        ctx.roundRect(x + 10, y, w - 20, h, 5);
+        ctx.roundRect(dx + 10, dy, w - 20, h, 5);
         ctx.fill();
         ctx.stroke();
         const v = Math.floor(c.val);
         if (v === 0) {
             ctx.fillStyle = '#000';
-            ctx.fillRect(x + w / 2 - 4, y, 8, h);
+            ctx.fillRect(dx + w / 2 - 4, dy, 8, h);
         } else {
             let bands = [];
             const s = v.toString();
@@ -77,35 +108,35 @@ function drawComponent(ctx, c, isSelected) {
             else { bands = [parseInt(s[0]), parseInt(s[1]), s.length - 2]; }
             bands.forEach((idx, i) => {
                 ctx.fillStyle = COLOR_MAP[idx] || '#000';
-                ctx.fillRect(x + 25 + (i * 12), y, 6, h);
+                ctx.fillRect(dx + 25 + (i * 12), dy, 6, h);
             });
-            ctx.fillStyle = COLOR_MAP[10];
-            ctx.fillRect(x + 65, y, 6, h);
+            ctx.fillStyle = COLOR_MAP[10]; // 金帯
+            ctx.fillRect(dx + 65, dy, 6, h);
         }
     } 
     else if (c.type === 'DIO') {
         ctx.fillStyle = '#222';
-        ctx.fillRect(x + 10, y + 2, w - 20, h - 4);
+        ctx.fillRect(dx + 10, dy + 2, w - 20, h - 4);
         ctx.fillStyle = '#ccc';
-        ctx.fillRect(x + w - 22, y + 2, 6, h - 4);
-        ctx.strokeRect(x + 10, y + 2, w - 20, h - 4);
+        ctx.fillRect(dx + w - 22, dy + 2, 6, h - 4);
+        ctx.strokeRect(dx + 10, dy + 2, w - 20, h - 4);
     } 
     else if (c.type === 'CAP') {
         ctx.fillStyle = '#1e3799';
-        ctx.fillRect(x, y, w, h - 10);
+        ctx.fillRect(dx, dy, w, h - 10);
         ctx.fillStyle = '#ccc';
-        ctx.fillRect(x, y + 2, 5, h - 14);
-        ctx.strokeRect(x, y, w, h - 10);
+        ctx.fillRect(dx, dy + 2, 5, h - 14);
+        ctx.strokeRect(dx, dy, w, h - 10);
         const fillH = Math.min((c.charge / 9), 1) * (h - 10);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(x, y + (h - 10), w, -fillH);
+        ctx.fillRect(dx, dy + (h - 10), w, -fillH);
     } 
     else if (c.type === 'LED') {
         ctx.fillStyle = c.isBlown ? '#333' : `rgba(255, 50, 50, ${0.4 + Math.min(c.currentI * 40, 0.6)})`;
         ctx.beginPath();
-        ctx.arc(x + w / 2, y + 15, 15, Math.PI, 0);
-        ctx.lineTo(x + w / 2 + 15, y + 35);
-        ctx.lineTo(x + w / 2 - 15, y + 35);
+        ctx.arc(dx + w / 2, dy + 15, 15, Math.PI, 0);
+        ctx.lineTo(dx + w / 2 + 15, dy + 35);
+        ctx.lineTo(dx + w / 2 - 15, dy + 35);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -116,77 +147,77 @@ function drawComponent(ctx, c, isSelected) {
     else if (c.type === 'TR') {
         ctx.fillStyle = '#333';
         ctx.beginPath();
-        ctx.arc(x + w / 2, y + 20, 20, Math.PI, 0);
-        ctx.lineTo(x + w / 2 + 20, y + 40);
-        ctx.lineTo(x + w / 2 - 20, y + 40);
+        ctx.arc(dx + w / 2, dy + 20, 20, Math.PI, 0);
+        ctx.lineTo(dx + w / 2 + 20, dy + 40);
+        ctx.lineTo(dx + w / 2 - 20, dy + 40);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#fff';
         ctx.font = "bold 10px Arial";
-        ctx.fillText(c.trType || "NPN", x + w / 2 - 10, y + 35);
+        ctx.fillText(c.trType || "NPN", dx + w / 2 - 10, dy + 35);
     } 
     else if (c.type === 'NOT_IC') {
         ctx.fillStyle = '#222';
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(dx, dy, w, h);
         ctx.fillStyle = '#111';
-        ctx.beginPath(); ctx.arc(x, y + h / 2, 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(dx, dy + h / 2, 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
         ctx.fillStyle = '#fff';
         ctx.font = "bold 10px Arial";
         if (c.isActive) {
            ctx.fillStyle = '#2ecc71';
-           ctx.fillText("74HC04(NOT):Active", x + 10, y - 10);
+           ctx.fillText("74HC04(NOT):Active", dx + 10, dy - 10);
         }
         ctx.fillStyle = '#fff';
-        ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
+        ctx.fillText("74HC04(NOT)", dx + 40, dy + h / 2 + 5);
     } 
     else if (c.type === 'BAT') {
         ctx.fillStyle = '#222';
-        ctx.fillRect(x, y, w, h);
+        ctx.fillRect(dx, dy, w, h);
         ctx.fillStyle = '#f1c40f';
-        ctx.fillRect(x, y, w, 15);
+        ctx.fillRect(dx, dy, w, 15);
         ctx.fillStyle = '#fff';
         ctx.font = "bold 12px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(c.val + "V BLOCK", x + w / 2, y + 45);
+        ctx.fillText(c.val + "V BLOCK", dx + w / 2, dy + 45);
         ctx.textAlign = "left";
     } 
     else if (c.type === 'PSW') {
         ctx.fillStyle = '#bdc3c7';
-        ctx.fillRect(x + 5, y + 5, w - 10, h - 10);
-        ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+        ctx.fillRect(dx + 5, dy + 5, w - 10, h - 10);
+        ctx.strokeRect(dx + 5, dy + 5, w - 10, h - 10);
         ctx.fillStyle = c.state ? '#2ecc71' : '#2c3e50';
-        ctx.beginPath();
-        ctx.arc(x + w / 2, y + h / 2, 10, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.strokeRect(x + w/2 - 6, y + h/2 - 6, 12, 12);
+        ctx.beginPath(); ctx.arc(dx + w / 2, dy + h / 2, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.strokeRect(dx + w/2 - 6, dy + h/2 - 6, 12, 12);
     } 
     else if (c.type === 'SSW') {
         ctx.fillStyle = '#34495e';
-        ctx.fillRect(x, y + 5, w, h - 10);
-        ctx.strokeRect(x, y + 5, w, h - 10);
-        const sliderX = c.state ? x + w - 15 : x + 5;
+        ctx.fillRect(dx, dy + 5, w, h - 10);
+        ctx.strokeRect(dx, dy + 5, w, h - 10);
+        const sliderX = c.state ? dx + w - 15 : dx + 5;
         ctx.fillStyle = '#ecf0f1';
-        ctx.fillRect(sliderX, y, 10, h);
-        ctx.strokeRect(sliderX, y, 10, h);
+        ctx.fillRect(sliderX, dy, 10, h);
+        ctx.strokeRect(sliderX, dy, 10, h);
     }
     else {
         ctx.fillStyle = '#95a5a6';
-        ctx.fillRect(x, y, w, h);
-        ctx.strokeRect(x, y, w, h);
+        ctx.fillRect(dx, dy, w, h);
+        ctx.strokeRect(dx, dy, w, h);
     }
 
+    // ピン描画（回転後の絶対座標を使用せず、rotate後の相対座標で描画）
     c.pins.forEach(p => {
         ctx.beginPath();
-        ctx.arc(x + p.relX, y + p.relY, 5, 0, Math.PI * 2);
+        ctx.arc(dx + p.relX, dy + p.relY, 5, 0, Math.PI * 2);
         ctx.fillStyle = (p.type === 'POS' || p.type === 'VCC') ? '#e74c3c' : (p.type === 'NEG' || p.type === 'GND') ? '#3498db' : '#ecf0f1';
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = "#333";
         ctx.font = "bold 10px sans-serif";
-        let lx = x + p.relX + (p.relX <= 0 ? -22 : 8);
-        let ly = y + p.relY + (p.relY <= 0 ? -10 : 15);
+        let lx = dx + p.relX + (p.relX <= 0 ? -22 : 8);
+        let ly = dy + p.relY + (p.relY <= 0 ? -10 : 15);
         if (p.label) ctx.fillText(p.label, lx, ly);
     });
+
+    ctx.restore();
 }
