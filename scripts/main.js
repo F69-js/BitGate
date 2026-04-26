@@ -101,7 +101,7 @@ function draw() {
         const isSelected = (state.selectedObj?.type === 'wire' && state.selectedObj.ref === w);
         ctx.lineWidth = isSelected ? 5 / state.zoom : 3 / state.zoom;
         // 電流が流れているときは赤
-        ctx.strokeStyle = isSelected ? '#2ecc71' : (w.from.comp.currentI > 0.01 ? '#e74c3c' : '#333');
+        ctx.strokeStyle = isSelected ? '#2ecc71' : '#333';
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         
