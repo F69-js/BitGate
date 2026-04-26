@@ -27,6 +27,22 @@ function updateSimulation() {
             processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
         }
     });
+    components.filter(c => c.type === 'NOT_IC').forEach(ic => {
+       const vccPin = ic.pins.find(p => p.type === 'VCC');
+       const gndPin = ic.pins.find(p => p.type === 'GND');
+    
+       // 電池のプラス(posP.id)とマイナス(negP.id)に繋がっているかチェック
+       // batteries[0] は便宜上の参照。複数の電池がある場合は工夫が必要。
+       if (batteries.length > 0) {
+           const batPos = batteries[0].pins.find(p => p.type === 'POS');
+           const batNeg = batteries[0].pins.find(p => p.type === 'NEG');
+        
+           const hasPower = isConnected(vccPin.id, batPos.id);
+           const hasGnd = isConnected(gndPin.id, batNeg.id);
+        
+           ic.isActive = hasPower && hasGnd; // 両方繋がっていれば Active!
+        }
+    });
 
     // 自然放電（微量）
     capacitors.forEach(c => {
