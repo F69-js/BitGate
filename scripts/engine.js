@@ -27,22 +27,45 @@ function updateSimulation() {
             processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
         }
     });
-    components.filter(c => c.type === 'NOT_IC').forEach(ic => {
-       const vccPin = ic.pins.find(p => p.type === 'VCC');
-       const gndPin = ic.pins.find(p => p.type === 'GND');
+    const ics = components.filter(c => c.type === 'NOT_IC');
+
+ics.forEach(ic => {
+    const vccPin = ic.pins.find(p => p.type === 'VCC');
+    const gndPin = ic.pins.find(p => p.type === 'GND');
     
-       // 電池のプラス(posP.id)とマイナス(negP.id)に繋がっているかチェック
-       // batteries[0] は便宜上の参照。複数の電池がある場合は工夫が必要。
-       if (batteries.length > 0) {
-           const batPos = batteries[0].pins.find(p => p.type === 'POS');
-           const batNeg = batteries[0].pins.find(p => p.type === 'NEG');
-        
-           const hasPower = isConnected(vccPin.id, batPos.id);
-           const hasGnd = isConnected(gndPin.id, batNeg.id);
-        
-           ic.isActive = hasPower && hasGnd; // 両方繋がっていれば Active!
-        }
-    });
+    // 電池（batteries[0]等）に繋がっているか判定
+    const isPowered = batteries.some(bat => 
+        isConnected(vccPin.id, bat.pins.find(p=>p.type==='POS').id) &&
+        isConnected(gndPin.id, bat.pins.find(p=>p.type==='NEG').id)
+    );
+
+    ic.isActive = isPowered; // これで緑のテキストが出るはず！
+
+    if (isPowered) {
+        // 各ゲート（1A-1Y, 2A-2Y...）の演算
+        const gates = [
+            {in: '1A', out: '1Y'}, {in: '2A', out: '2Y'}, {in: '3A', out: '3Y'},
+            {in: '4A', out: '4Y'}, {in: '5A', out: '5Y'}, {in: '6A', out: '6Y'}
+        ];
+
+        gates.forEach(g => {
+            const inPin = ic.pins.find(p => p.label === g.in);
+            const outPin = ic.pins.find(p => p.label === g.out);
+
+            // 入力が電池のプラスに繋がっているかチェック（High判定）
+            const isHigh = batteries.some(bat => 
+                isConnected(inPin.id, bat.pins.find(p=>p.type==='POS').id)
+            );
+
+            // NOT演算：Low(Highでない)なら出力を 5V の電源として扱う
+            if (!isHigh) {
+                // 出力ピンを起点に、GND(電池のマイナス)に向かって電流を流す
+                const batNeg = batteries[0].pins.find(p => p.type === 'NEG');
+                processPowerSource(ic, outPin, batNeg, 5, false); 
+            }
+        });
+    }
+});
 
     // 自然放電（微量）
     capacitors.forEach(c => {
