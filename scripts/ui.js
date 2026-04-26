@@ -238,3 +238,38 @@ function deleteSelected() {
     }
     selectedObj = null; updateUI();
 }
+function showErrorDialog(title, msg, detail, isFatal = false) {
+    // 既存のダイアログがあれば削除
+    const old = document.getElementById('error-modal');
+    if (old) old.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'error-modal';
+    modal.style = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: #2b2b2b; color: #eee; border: 1px solid #ff4444;
+        padding: 20px; z-index: 9999; font-family: sans-serif; width: 400px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.7); border-radius: 4px;
+    `;
+
+    modal.innerHTML = `
+        <h3 style="margin:0 0 10px; color:#ff4444; font-size:1.1em;">${title}</h3>
+        <p style="font-size:0.9em; line-height:1.4;">${msg.replace(/\n/g, '<br>')}</p>
+        <div style="background:#1a1a1a; padding:10px; font-family:monospace; font-size:0.8em; margin:15px 0; border:1px solid #444; max-height:100px; overflow-y:auto; white-space:pre-wrap;">
+            エラー詳細:<br>${detail}
+        </div>
+        <div style="text-align:right; gap:10px; display:flex; justify-content:flex-end;">
+            ${isFatal ? '<a href="https://github.com/F69-js/BitGate/issues" target="_blank" style="color:#2ecc71; text-decoration:none; align-self:center; font-size:0.8em; margin-right:auto;">問題を報告</a>' : ''}
+            <button id="error-ok-btn" style="background:#444; color:#fff; border:none; padding:8px 20px; cursor:pointer; border-radius:2px;">
+                ${isFatal ? '再読み込み' : 'OK'}
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById('error-ok-btn').onclick = () => {
+        if (isFatal) location.reload();
+        else modal.remove();
+    };
+}
