@@ -42,7 +42,6 @@ function updateSimulation() {
         // 充電フラグを一旦リセット
         c.isBeingCharged = false;
         if (c.type === 'BAT') c.isShort = false;
-        if (c.type === 'TR') c.isBaseActive = false;
     });
     
     // シミュレーション停止中ならここで抜けるが、SYNCは維持される
@@ -208,13 +207,17 @@ function checkLogicalStates(bat, posP, negP) {
         if (comp.type === 'TR') {
             const bP = comp.pins.find(p => p.type === 'B');
             if (!bP) return;
-            const hasDirectPos = isConnected(bP.id, posP.id);
-            const capV = getConnectedCapVoltage(bP.id);
-            comp.isBaseActive = hasDirectPos || (capV > 0.6);
+
+            // 修正：電池からの直接供給があるか、または「電荷を持ったコンデンサ」とつながっているか
+            const hasDirectPos = bat ? isConnected(bP.id, posP.id) : false;
+            
+            // 接続されている全てのコンデンサをチェックし、0.6V以上の電荷があるか確認
+            const connectedCapVoltage = getConnectedCapVoltage(bP.id);
+            
+            comp.isBaseActive = hasDirectPos || (connectedCapVoltage > 0.6);
         }
     });
 }
-
 /**
  * 接続されているコンデンサの最大電圧を取得
  */
