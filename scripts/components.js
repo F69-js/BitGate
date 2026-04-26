@@ -137,6 +137,10 @@ function drawComponent(ctx, c, isSelected) {
         ctx.beginPath(); ctx.arc(x, y + h / 2, 6, -Math.PI / 2, Math.PI / 2); ctx.fill();
         ctx.fillStyle = '#fff';
         ctx.font = "bold 10px Arial";
+        if (c.isActive) { // あるいは通電状態を判定する変数
+           ctx.fillStyle = '#2ecc71'; // NASAっぽいネオングリーン
+           ctx.fillText("74HC04(NOT):Active", x + 10, y - 10); // ICの上に表示
+        }
         ctx.fillText("74HC04(NOT)", x + 40, y + h / 2 + 5);
     } 
     else if (c.type === 'BAT') {
