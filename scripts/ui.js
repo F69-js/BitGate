@@ -42,7 +42,27 @@ export function initUIListeners() {
         state.offset.y = mouseY - (mouseY - state.offset.y) * (nextZoom / state.zoom);
         state.zoom = nextZoom;
     }, { passive: false });
-
+    // --- 追加：配線ダブルクリックで折れ点追加 ---
+canvas.addEventListener('dblclick', e => {
+    const pos = getMousePos(e);
+    
+    if (state.selectedObj?.type === 'wire') {
+        const w = state.selectedObj.ref;
+        const pStart = getPinPos(w.from.comp, w.from.pin);
+        const pEnd = getPinPos(w.to.comp, w.to.pin);
+        const pts = [pStart, ...w.points, pEnd];
+        
+        // どのセグメント（直線の隙間）をクリックしたか探す
+        for (let i = 0; i < pts.length - 1; i++) {
+            if (distToSegment(pos, pts[i], pts[i + 1]) < 10 / state.zoom) {
+                // 配線のpoints配列の正しい位置に、新しい点を滑り込ませる
+                w.points.splice(i, 0, { x: pos.x, y: pos.y });
+                updateUI();
+                return;
+            }
+        }
+    }
+});
     canvas.addEventListener('mousedown', e => {
         const pos = getMousePos(e);
         dragStartPos = { ...pos };
@@ -166,16 +186,17 @@ export function initUIListeners() {
         isPanning = false;
     });
 
-    window.addEventListener('keydown', e => { 
-        if (e.code === 'Space') isSpacePressed = true; 
-        if (e.key === 'Shift' && state.selectedObj?.type === 'comp') {
-            const c = state.selectedObj.ref;
-            c.angle = (c.angle || 0) + Math.PI / 2;
-            if (c.angle >= Math.PI * 2) c.angle = 0;
-        }
-        if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
-    });
-
+window.addEventListener('keydown', e => { 
+    if (e.code === 'Space') isSpacePressed = true; 
+    
+    // ★ Shift だけでなく、Rキー (Rotate) でも回転できるように拡張
+    if ((e.key === 'Shift' || e.key === 'r' || e.key === 'R') && state.selectedObj?.type === 'comp') {
+        const c = state.selectedObj.ref;
+        c.angle = (c.angle || 0) + Math.PI / 2;
+        if (c.angle >= Math.PI * 2) c.angle = 0;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
+});
     window.addEventListener('keyup', e => { 
         if (e.code === 'Space') isSpacePressed = false; 
     });
