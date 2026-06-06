@@ -156,6 +156,22 @@ document.getElementById('startBtn')?.addEventListener('click', () => {
     const btn = document.getElementById('startBtn');
     btn.classList.toggle('active', state.isSimulating);
     btn.innerText = state.isSimulating ? "STOP SYSTEM" : "RUN SYSTEM";
+
+    // --- 【ここを追加】停止した瞬間のリセット処理 ---
+    // Workerへ現在のON/OFF状態（false）を伝える
+    physicsWorker.postMessage({ type: 'SET_SIM', value: state.isSimulating });
+
+    if (!state.isSimulating) {
+        // 停止した瞬間に、最後のデータを一度同期して「電流をクリア（TICK）」させる
+        physicsWorker.postMessage({
+            type: 'SYNC',
+            data: { 
+                components: state.components, 
+                wires: state.wires 
+            }
+        });
+        physicsWorker.postMessage({ type: 'TICK' });
+    }
 });
 
 document.getElementById('delBtn')?.addEventListener('click', deleteSelected);
