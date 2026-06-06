@@ -37,15 +37,21 @@ self.onmessage = (e) => {
  * メインエンジン：updateSimulation
  */
 function updateSimulation() {
+    // 1. まずすべてのパーツの電流やフラグをリセット
     components.forEach(c => {
         c.currentI = 0;
-        // 充電フラグを一旦リセット
         c.isBeingCharged = false;
         if (c.type === 'BAT') c.isShort = false;
     });
     
-    // シミュレーション停止中ならここで抜けるが、SYNCは維持される
-    isSimulating = true; // 内部フラグを強制的に同期（メインスレッドの状態に依存）
+    // 【修正ポイント】
+    // 元のコードにあった「isSimulating = true;」の強制上書きを削除。
+    // メインスレッドから送られてくる 'SET_SIM' の値をそのまま評価します。
+    if (!isSimulating) {
+        // シミュレーション停止中なら、電流0の状態でここで処理を抜ける。
+        // これにより、このあとすぐメインスレッドに「電流0」のデータが送り返されます。
+        return; 
+    }
 
     const batteries = components.filter(c => c.type === 'BAT');
     const capacitors = components.filter(c => c.type === 'CAP');
@@ -60,21 +66,14 @@ function updateSimulation() {
         processPowerSource(bat, posP, negP, Number(bat.val), true);
     });
 
-// 2. コンデンサの放電を計算
-capacitors.forEach(cap => {
-    // 修正：充電中でない、かつ、ある程度の電荷がある場合に放電
-    // currentIがほぼ0、または外部電源からの供給がない場合に放電パスを回す
-    if (!cap.isBeingCharged && cap.charge > 0.001) {
-        // コンデンサ自身を電源として放電パスを回す
-        processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
-        
-        // 自然放電（漏れ電流）も少し強めに設定して確実に減るようにする
-        cap.charge *= 0.98; 
-    }
-    
-    // 電荷が極小になったら完全に0にする（浮遊電荷防止）
-    if (cap.charge < 0.001) cap.charge = 0;
-});
+    // 2. コンデンサの放電を計算
+    capacitors.forEach(cap => {
+        if (!cap.isBeingCharged && cap.charge > 0.001) {
+            processPowerSource(cap, cap.pins[0], cap.pins[1], cap.charge, false);
+            cap.charge *= 0.98; 
+        }
+        if (cap.charge < 0.001) cap.charge = 0;
+    });
 
     // 3. IC(74HC04 NOT) のロジック演算
     const ics = components.filter(c => c.type === 'NOT_IC');
@@ -118,7 +117,6 @@ capacitors.forEach(cap => {
         if (!c.isBeingCharged && c.currentI === 0) c.charge *= 0.999;
     });
 }
-
 /**
  * 電源処理：経路を探索して電流を分配
  */
